@@ -42,7 +42,9 @@ ENV/
 output/
 jobs/
 temp/
+mockups/
 assets/characters/*.png
+assets/objects/*.png
 assets/environments/*.png
 assets/audio/*.aac
 *.mp4
@@ -55,3 +57,4 @@ assets/audio/*.aac
 Thumbs.db
 .idea/
 .vscode/
+scratch/

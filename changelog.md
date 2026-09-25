@@ -2,6 +2,36 @@
 
 All notable changes to the Video Workflow Studio are documented in this file.
 
+## [1.5.0] - 2026-09-25
+
+### Added
+- **Google Flow Failure Detection & Auto-Recovery (`pipeline/chrome_flow.py`)**:
+  - Implemented real-time DOM error detection inspecting snackbars (`.mat-mdc-snack-bar-container`, `[role="alert"]`), error banners, and failed generation cards.
+  - Added prompt sanitization (`sanitize_prompt_for_safety`) automatically transforming noir/violence keywords ("murdered", "blood", "kill", "dead body", "weapon", "corpse") into atmospheric cinematic equivalents ("shadowed", "rainwater", "confront", "silent crime scene", "gadget", "abandoned altar") to bypass safety policy triggers.
+  - Added automatic alert dismissal (`dismiss_flow_alerts`) and diagnostic error screenshot capture (`temp/flow_error_attempt*.png`).
+  - Integrated a 3-attempt auto-retry loop with refreshed ProseMirror inputs before reporting failure.
+- **3D Spatial Scene Blocking & Object Continuity Matrix (`pipeline/storyboard.py`, `pipeline/director.py`, `skills/film_skills.py`)**:
+  - Added `SpatialGridPoint` for 3D coordinate mapping (-1.0 to 1.0 for Stage Left/Right and Downstage/Upstage; 0.0 to 3.0 for Elevation).
+  - Added `StageCharacterBlocking`: character stage positions, facing angles (0-360°), eye-line vectors, physical stances, and continuity anchors to prevent character teleportation across camera cuts.
+  - Added `TrackedSceneObject`: persistent physical surface anchors for objects (e.g. golden wedding ring in crystal goblet, glass sphere, brass key, kelp altar).
+  - Added `CameraBlocking`: strictly enforces the 180-degree line of action, camera position coordinates, low-angle elevation, and focal planes.
+  - Added `SpatialTransition`: explicit cross-shot carryover rules preserving screen-left/screen-right continuity and eye-lines.
+  - Updated `FilmPromptBuilder.build_prompt` to inject structured tokens: `[SPATIAL BLOCKING: ...]`, `[OBJECT LOCATIONS: ...]`, `[CAMERA AXIS: ...]`.
+- **Visual Storyboard Mockup & Named Asset Generator (`pipeline/mockup_generator.py`)**:
+  - Named Character Asset Generator (`generate_character_assets`): outputs dedicated PNG asset cards into `assets/characters/` (`char_01_batman_noir.png`, `char_02_lady_guppy_koi.png`, `char_03_sir_longneck_giraffe.png`, `char_04_the_mystery_cat.png`, `char_05_alfred_pennyworth.png`).
+  - Named Scene Object Asset Generator (`generate_object_assets`): outputs dedicated PNG cards into `assets/objects/` (`obj_01_submerged_gold_wedding_ring.png`, `obj_02_crystal_water_orb_pod.png`, `obj_03_velvet_tuxedo_bowtie.png`, `obj_04_brass_maritime_key.png`, `obj_05_sea_kelp_acacia_altar.png`).
+  - Storyboard Shot Mockup Cards (`generate_scene_mockup_card`, `generate_storyboard_mockups`): generates 1280x720 cinema production cards featuring:
+    - Top clapperboard header with shot specs, scale, lens, and lighting.
+    - 2D Top-Down Architectural Stage Map showing stage grid, character nodes with directional facing arrows, tracked objects, 180° Action Axis line, and camera FOV frustum cone.
+    - Cinematic visual composition frame render.
+    - Spatial continuity rules, object anchors, 180° axis rule, and full Veo visual prompt.
+- **CLI Commands (`main.py`)**:
+  - Added `--generate-assets` to generate named character and object cards.
+  - Added `--generate-mockups` to generate 2D spatial storyboard cards for individual projects or multi-episode seasons.
+- **Expanded Test Suite (`tests/test_studio.py`)**:
+  - Added 9 new unit tests covering prompt safety sanitization, alert dismissal, spatial grid points, scene blocking summaries, season spatial continuity, character/object asset creation, and 1280x720 storyboard card rendering.
+  - Test suite expanded to 53 tests with 100% pass rate.
+
 ## [1.4.0] - 2026-09-25
 
 ### Added

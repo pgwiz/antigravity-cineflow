@@ -17,7 +17,29 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 from config import settings
-from pipeline.storyboard import Storyboard, Scene, SceneStatus, Screenplay, CharacterProfile
+from pipeline.storyboard import (
+    Storyboard,
+    Scene,
+    SceneStatus,
+    Screenplay,
+    CharacterProfile,
+    SpatialGridPoint,
+    StageCharacterBlocking,
+    TrackedSceneObject,
+    CameraBlocking,
+    SpatialTransition,
+    TransitionConfig,
+)
+from skills.film_skills import (
+    FilmPromptBuilder,
+    ShotType,
+    CameraMovement,
+    LightingStyle,
+    OpticsLenses,
+    ColorScience,
+    TransitionType,
+    DEFAULT_NEGATIVE_PROMPT,
+)
 from pipeline.video_gen import VideoGenerationEngine
 from pipeline.editor import VideoEditor
 
@@ -858,23 +880,163 @@ class SeasonOrchestrator:
         )
 
         for sc in ep_data["scenes"]:
-            # Combine scene descriptions with character prompt anchors for rock-solid visual consistency
-            visual_prompt = (
-                f"{sc['description']} "
-                f"Cinematic {sc['scale']} camera framing, {sc['movement']}, "
-                f"{sc['lighting']}. 35mm anamorphic film, Kodak Vision3 500T grain, 8k masterpiece."
+            desc = sc["description"]
+            desc_lower = desc.lower()
+
+            # Determine character blockings for this specific shot
+            char_blockings: List[StageCharacterBlocking] = []
+            chars_in_shot: List[str] = []
+
+            if "cat" in desc_lower or "feline" in desc_lower or "whiskers" in desc_lower:
+                chars_in_shot.append("The Mystery Cat")
+                char_blockings.append(
+                    StageCharacterBlocking(
+                        character_id="the_mystery_cat",
+                        name="The Mystery Cat",
+                        position=SpatialGridPoint(x=-0.45, y=0.0, z=0.8, named_zone="STAGE_LEFT_ALTAR_TABLE"),
+                        facing_angle_deg=45.0,
+                        facing_description="Facing 45 degrees Downstage-Right towards center altar goblet",
+                        eyeline_vector="Piercing amber eyes fixed on the golden wedding ring",
+                        physical_pose="Curled on mahogany table surface beside goblet, paws tucked, tail still",
+                        continuity_anchor="Permanently anchored on Altar Table Stage-Left; MUST NOT relocate without scripted cut",
+                    )
+                )
+
+            if "koi" in desc_lower or "fish" in desc_lower or "lady guppy" in desc_lower or "bride" in desc_lower:
+                chars_in_shot.append("Lady Guppy")
+                char_blockings.append(
+                    StageCharacterBlocking(
+                        character_id="lady_guppy",
+                        name="Lady Guppy",
+                        position=SpatialGridPoint(x=0.0, y=0.0, z=0.8, named_zone="CENTER_ALTAR_POD"),
+                        facing_angle_deg=0.0,
+                        facing_description="Facing Downstage through spherical crystal lens",
+                        eyeline_vector="Looking serenely through saline water bubbles",
+                        physical_pose="Swimming gracefully inside reinforced glass sphere filled with mineral saline",
+                        continuity_anchor="Stationary at Center Altar surface; glass sphere remains anchored",
+                    )
+                )
+
+            if "giraffe" in desc_lower or "sir longneck" in desc_lower or "groom" in desc_lower:
+                chars_in_shot.append("Sir Longneck")
+                char_blockings.append(
+                    StageCharacterBlocking(
+                        character_id="sir_longneck",
+                        name="Sir Longneck",
+                        position=SpatialGridPoint(x=-0.65, y=0.45, z=0.0, named_zone="UPSTAGE_LEFT_TUXEDO"),
+                        facing_angle_deg=315.0,
+                        facing_description="Bowing 16-foot neck down towards the altar pod",
+                        eyeline_vector="Dignified gaze resting upon the aquatic bride pod",
+                        physical_pose="Standing tall in black velvet tuxedo coat and silk bowtie",
+                        continuity_anchor="Positioned Upstage-Left towering over altar; maintain screen-left height",
+                    )
+                )
+
+            if "batman" in desc_lower or "bruce" in desc_lower or "detective" in desc_lower or "cowl" in desc_lower or not chars_in_shot:
+                chars_in_shot.append("Batman")
+                char_blockings.append(
+                    StageCharacterBlocking(
+                        character_id="batman",
+                        name="Batman",
+                        position=SpatialGridPoint(x=0.5, y=-0.5, z=0.9, named_zone="STAGE_RIGHT_GARGOYLE"),
+                        facing_angle_deg=315.0,
+                        facing_description="Facing Downstage-Left toward the wedding crime scene",
+                        eyeline_vector="Lenses zoomed on the table evidence and feline paw prints",
+                        physical_pose="Brooding low crouch, scalloped cape draped over gargoyle ledge, rain dripping from cowl",
+                        continuity_anchor="Anchored on Elevated Gargoyle Stage-Right; maintains high-angle vantage",
+                    )
+                )
+
+            # Define persistent tracked scene objects
+            tracked_objs = [
+                TrackedSceneObject(
+                    object_id="obj_01_submerged_gold_wedding_ring",
+                    name="Submerged Golden Wedding Ring",
+                    position=SpatialGridPoint(x=0.0, y=0.0, z=0.8, named_zone="CENTER_ALTAR_GOBLET"),
+                    container_or_surface="Submerged in crystal goblet on Center Altar table",
+                    visual_state="24k gold band submerged in mineral saline with micro-bubbles and caustic light rings",
+                    continuity_lock="Permanent fixture at Center Altar; must remain visible when camera faces altar",
+                ),
+                TrackedSceneObject(
+                    object_id="obj_04_brass_maritime_key",
+                    name="Antique Brass Maritime Key",
+                    position=SpatialGridPoint(x=-0.45, y=0.0, z=0.8, named_zone="STAGE_LEFT_TABLE"),
+                    container_or_surface="Held in Mystery Cat's jaws or resting beside paw on table",
+                    visual_state="Weathered nautical brass skeleton key with anchor crest, dripping with seawater",
+                    continuity_lock="Bound to Mystery Cat's immediate physical vicinity",
+                ),
+                TrackedSceneObject(
+                    object_id="obj_05_sea_kelp_acacia_altar",
+                    name="Kelp & Acacia Wedding Altar",
+                    position=SpatialGridPoint(x=0.0, y=0.0, z=0.8, named_zone="CENTER_ALTAR_SURFACE"),
+                    container_or_surface="Ancient stone altar surface",
+                    visual_state="Intertwined wet green sea kelp and dry golden acacia twigs draped across stone",
+                    continuity_lock="Permanent architectural centerpiece",
+                ),
+            ]
+
+            # Define camera 180-degree action line and blocking
+            cam_blocking = CameraBlocking(
+                axis_of_action_180="180-degree axis locked on the line between Downstage Entrance and Center Altar; camera strictly operates in South-East quadrant",
+                camera_position=SpatialGridPoint(x=0.25, y=-0.75, z=1.0, named_zone="DOWNSTAGE_RIGHT_CINE_CRANE"),
+                camera_elevation_angle="Low-Angle 20 degrees upward tilt from 30 inches off water surface",
+                camera_fov="35mm anamorphic prime (65-degree horizontal FOV)",
+                focal_target=f"{chars_in_shot[0]} at {char_blockings[0].position.named_zone}",
             )
+
+            # Spatial Transition continuity
+            spatial_trans = SpatialTransition(
+                transition_type=TransitionType.HARD_CUT if sc["scene_number"] % 2 == 0 else TransitionType.DISSOLVE,
+                duration_seconds=0.5 if sc["scene_number"] % 2 != 0 else 0.0,
+                spatial_carryover_notes=(
+                    "Cat remains strictly on Altar Table Stage-Left; Ring remains in Center Goblet; "
+                    "Batman maintains Stage-Right screen presence. 180-degree axis preserved across cut."
+                ),
+            )
+
+            # Build multi-layered prompt with Hollywood Film Skills and explicit spatial blocking
+            scale_enum = ShotType.MEDIUM_SHOT
+            for st in ShotType:
+                if st.name.startswith(sc["scale"]) or sc["scale"] in st.value:
+                    scale_enum = st
+                    break
+
+            visual_prompt = FilmPromptBuilder.build_prompt(
+                subject_action=desc,
+                shot_type=scale_enum,
+                camera_movement=CameraMovement.SLOW_PUSH_IN if "push" in sc["movement"].lower() else CameraMovement.STATIC,
+                lighting=LightingStyle.CHIAROSCURO if "chiaroscuro" in sc["lighting"].lower() else LightingStyle.NEON_CYBER_NOIR,
+                lens=OpticsLenses.ANAMORPHIC_35MM,
+                color_science=ColorScience.KODAK_VISION3_35MM,
+                visual_dna="; ".join(SEASON_CHARACTERS[c]["prompt_anchor"] for c in chars_in_shot if c in SEASON_CHARACTERS),
+                environmental_atmosphere="Heavy rain, wet reflective surfaces, atmospheric fog, Gotham neon reflections",
+                spatial_blocking="; ".join(f"{cb.name} at {cb.position.named_zone} ({cb.facing_description}, stance: {cb.physical_pose})" for cb in char_blockings),
+                object_locations="; ".join(f"{ob.name} anchored at {ob.position.named_zone}" for ob in tracked_objs),
+                camera_axis=cam_blocking.axis_of_action_180,
+            )
+
             scene = Scene(
                 scene_number=sc["scene_number"],
                 title=f"Scene {sc['scene_number']:02d}: {sc['scale']}",
+                slugline_ref=ep_data["title"],
                 action_description=sc["description"],
                 shot_type=sc["scale"],
                 camera_movement=sc["movement"],
                 lighting=sc["lighting"],
+                stage_environment=f"Flooded Gothic Cathedral sanctuary and Gotham Harbor pier for {ep_data['title']}",
+                character_blockings=char_blockings,
+                tracked_objects=tracked_objs,
+                camera_blocking=cam_blocking,
+                spatial_transition=spatial_trans,
+                characters_in_shot=chars_in_shot,
                 sound_effects_cue=sc["audio"],
                 visual_prompt=visual_prompt,
-                negative_prompt="blurry, distorted, low quality, cartoon, anime, text, watermark, bad anatomy",
+                negative_prompt=DEFAULT_NEGATIVE_PROMPT,
                 duration_seconds=float(sc["duration"]),
+                transition_to_next=TransitionConfig(
+                    transition_type=TransitionType.DISSOLVE if sc["scene_number"] % 2 != 0 else TransitionType.HARD_CUT,
+                    duration_seconds=0.5 if sc["scene_number"] % 2 != 0 else 0.0,
+                ),
             )
             storyboard.scenes.append(scene)
 

@@ -113,6 +113,49 @@ class Screenplay(BaseModel):
         lines.append("\nTHE END\n")
         return "\n".join(lines)
 
+class SpatialGridPoint(BaseModel):
+    """3D Stage Coordinate representation (-1.0 to 1.0 for X/Y, 0.0 to 3.0 for Z)."""
+    x: float = Field(0.0, description="Horizontal axis: -1.0 (Stage Left) to +1.0 (Stage Right), 0.0 (Center)")
+    y: float = Field(0.0, description="Depth axis: -1.0 (Downstage/Foreground) to +1.0 (Upstage/Background), 0.0 (Center)")
+    z: float = Field(0.0, description="Vertical axis: 0.0 (Floor level) to 3.0 (Elevated/Perched)")
+    named_zone: str = Field("CENTER_STAGE", description="Human-readable stage location, e.g. STAGE_LEFT_ALTAR_TABLE")
+
+class StageCharacterBlocking(BaseModel):
+    """Explicit physical placement and eye-line vector for a character in a shot."""
+    character_id: str
+    name: str
+    position: SpatialGridPoint
+    facing_angle_deg: float = Field(0.0, description="0=Facing Camera/Downstage, 90=Stage Right, 180=Upstage, 270=Stage Left")
+    facing_description: str = Field(..., description="e.g. Facing 45 degrees Downstage-Right towards center altar")
+    eyeline_vector: str = Field(..., description="e.g. Focused on the submerged wedding ring in the goblet")
+    physical_pose: str = Field(..., description="e.g. Crouched motionless on mahogany table surface, paws tucked, tail still")
+    continuity_anchor: str = Field(..., description="e.g. Anchored on Table Surface Stage-Left; MUST NOT relocate without scripted cut")
+
+class TrackedSceneObject(BaseModel):
+    """Persistent object state and physical anchor across cuts to prevent AI hallucination."""
+    object_id: str
+    name: str
+    position: SpatialGridPoint
+    container_or_surface: str = Field(..., description="e.g. Submerged inside crystal goblet on Center Altar table")
+    visual_state: str = Field(..., description="e.g. Sparkling golden ring in saline water with micro-bubbles")
+    holder_character: Optional[str] = None
+    continuity_lock: str = Field(..., description="e.g. Permanent fixture on Center Altar; must remain visible when camera faces altar")
+
+class CameraBlocking(BaseModel):
+    """Explicit camera position, 180-degree action line, and focal plane."""
+    axis_of_action_180: str = Field(..., description="180-degree action line, e.g. Locked between Nave Entrance and Altar")
+    camera_position: SpatialGridPoint
+    camera_elevation_angle: str = Field("Eye-level", description="e.g. Low-Angle 20 degrees upward tilt from 30 inches off water surface")
+    camera_fov: str = Field("35mm anamorphic wide-angle (65-degree horizontal FOV)")
+    focal_target: str = Field(..., description="Focal plane locked on subject; background elements in soft bokeh")
+
+class SpatialTransition(BaseModel):
+    """Finely defined optical and spatial continuity rules across shot cuts."""
+    transition_type: TransitionType = TransitionType.HARD_CUT
+    duration_seconds: float = 0.5
+    spatial_carryover_notes: str = Field(..., description="e.g. Preserves Cat on Screen-Left, Altar at Screen-Center across the cut")
+    match_vector: Optional[str] = None
+
 class TransitionConfig(BaseModel):
     transition_type: TransitionType = TransitionType.HARD_CUT
     duration_seconds: float = 0.5
@@ -133,6 +176,13 @@ class Scene(BaseModel):
     lens: str = OpticsLenses.ANAMORPHIC_35MM.name
     color_science: str = ColorScience.KODAK_VISION3_35MM.name
     
+    # Spatial Stage Blocking & Continuity
+    stage_environment: str = Field(default="Flooded Gothic Cathedral sanctuary with central stone altar and stained glass")
+    character_blockings: List[StageCharacterBlocking] = Field(default_factory=list)
+    tracked_objects: List[TrackedSceneObject] = Field(default_factory=list)
+    camera_blocking: Optional[CameraBlocking] = None
+    spatial_transition: Optional[SpatialTransition] = None
+
     # Prompting
     action_description: str
     characters_in_shot: List[str] = Field(default_factory=list)
@@ -154,6 +204,31 @@ class Scene(BaseModel):
     status: SceneStatus = SceneStatus.PENDING
     error_message: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    def get_spatial_summary(self) -> str:
+        """Returns compact spatial blocking summary for prompt injection."""
+        if not self.character_blockings:
+            return ""
+        items = []
+        for cb in self.character_blockings:
+            items.append(f"{cb.name} positioned at {cb.position.named_zone} (facing {cb.facing_description}, stance: {cb.physical_pose})")
+        return "; ".join(items)
+
+    def get_object_summary(self) -> str:
+        """Returns compact object locations summary for prompt injection."""
+        if not self.tracked_objects:
+            return ""
+        items = []
+        for ob in self.tracked_objects:
+            items.append(f"{ob.name} anchored at {ob.position.named_zone} [{ob.container_or_surface}, visual state: {ob.visual_state}]")
+        return "; ".join(items)
+
+    def get_camera_axis_summary(self) -> str:
+        """Returns camera 180-degree axis guidelines for prompt injection."""
+        if not self.camera_blocking:
+            return ""
+        cb = self.camera_blocking
+        return f"{cb.axis_of_action_180}; Camera at {cb.camera_position.named_zone}, elevation: {cb.camera_elevation_angle}, targeting {cb.focal_target}"
 
 class Storyboard(BaseModel):
     """Master production storyboard linking Screenplay, Character Bible, and Shot List."""
@@ -204,7 +279,16 @@ class Storyboard(BaseModel):
             lines.append(f"- **Framing & Optics:** `{s.shot_type}` with `{s.lens}`")
             lines.append(f"- **Camera Movement:** `{s.camera_movement}`")
             lines.append(f"- **Lighting & Palette:** `{s.lighting}` | `{s.color_science}`")
+            lines.append(f"- **Stage Environment:** {s.stage_environment}")
+            if s.character_blockings:
+                lines.append(f"- **Spatial Blocking & Poses:** {s.get_spatial_summary()}")
+            if s.tracked_objects:
+                lines.append(f"- **Tracked Objects & Anchors:** {s.get_object_summary()}")
+            if s.camera_blocking:
+                lines.append(f"- **Camera Axis & 180° Rule:** {s.get_camera_axis_summary()}")
             lines.append(f"- **Action:** {s.action_description}")
+            if s.spatial_transition:
+                lines.append(f"- **Spatial Transition Carryover:** {s.spatial_transition.spatial_carryover_notes}")
             if s.chain_from_previous_last_frame:
                 lines.append(f"- **Continuity:** 🔗 *Chained directly from Shot {s.scene_number-1:02d} last frame*")
             if s.reference_image_path:

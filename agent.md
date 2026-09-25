@@ -73,6 +73,17 @@ When composing scene prompts, the agent must adhere to the six layers of visual 
 6. **Negative Prompting**:
    - Standard exclusions: `morphing, rubbery limbs, mutated anatomy, deformed hands, extra fingers, jittery motion, blurry, watermarks, oversaturated cartoon 3d render`.
 
+7. **3D Spatial Stage Blocking & Object Continuity**:
+   - Every shot explicitly models the stage coordinate grid ($X \in [-1.0, 1.0]$, $Y \in [-1.0, 1.0]$, $Z \in [0.0, 3.0]$).
+   - Injects structured tokens into prompts: `[SPATIAL BLOCKING: ...]`, `[OBJECT LOCATIONS: ...]`, `[CAMERA AXIS: ...]`.
+   - Locks tracked key objects (e.g., golden wedding ring in crystal goblet, crystal water orb pod, velvet bowtie, brass maritime key, kelp altar) to persistent surface coordinates so they never drift or change across shots.
+   - Enforces the 180-degree action line: the camera must stay on one side of the action vector to prevent spatial flipping across cuts.
+
+8. **Visual Storyboard Mockups & Named Assets**:
+   - Named character dossiers saved to `assets/characters/`.
+   - Named scene objects saved to `assets/objects/`.
+   - 1280x720 production mockup cards saved to `mockups/epXX/` displaying 2D top-down stage maps, camera FOV frustum cones, character nodes with facing arrows, tracked objects, 180° action lines, visual frame previews, and Veo prompt specifications.
+
 ---
 
 ## Explicit Storyboard JSON Schema
@@ -100,6 +111,37 @@ When composing scene prompts, the agent must adhere to the six layers of visual 
       "action_description": "Rain-soaked Gotham skyline with lightning",
       "visual_prompt": "string",
       "negative_prompt": "string",
+      "stage_characters": [
+        {
+          "character_name": "BATMAN",
+          "stage_x": -0.4,
+          "stage_y": 0.5,
+          "elevation_z": 1.2,
+          "facing_degrees": 90.0,
+          "eye_line_target": "CAT",
+          "pose": "crouched on stone gargoyle",
+          "continuity_anchor": "gargoyle ledge stage-left"
+        }
+      ],
+      "tracked_objects": [
+        {
+          "object_id": "GOLDEN_RING_IN_GOBLET",
+          "object_name": "Submerged Golden Ring",
+          "surface_anchor": "Center altar table",
+          "stage_x": 0.0,
+          "stage_y": 0.0,
+          "elevation_z": 0.8,
+          "visual_state": "submerged in clear water goblet",
+          "continuity_lock": true
+        }
+      ],
+      "camera_blocking": {
+        "action_axis_angle": 0.0,
+        "camera_quadrant": "FRONT_LEFT",
+        "elevation_angle": "LOW_ANGLE_30_DEG",
+        "focal_target": "BATMAN",
+        "line_of_action_rule": "Camera strictly stays on downstage side of action line"
+      },
       "chain_from_previous_last_frame": false,
       "transition_to_next": {
         "transition_type": "hard_cut",

@@ -82,8 +82,11 @@ class FilmPromptBuilder:
         color_science: ColorScience = ColorScience.KODAK_VISION3_35MM,
         visual_dna: Optional[str] = None,
         environmental_atmosphere: Optional[str] = None,
+        spatial_blocking: Optional[str] = None,
+        object_locations: Optional[str] = None,
+        camera_axis: Optional[str] = None,
     ) -> str:
-        """Assembles a multi-layered cinematic prompt for Veo video generation."""
+        """Assembles a multi-layered cinematic prompt for Veo video generation with explicit spatial blocking."""
         components: List[str] = []
 
         # 1. Shot Composition & Lens
@@ -94,17 +97,25 @@ class FilmPromptBuilder:
             components.append(f"Subject Visual DNA: {visual_dna}.")
         components.append(f"Scene Action: {subject_action}.")
 
-        # 3. Camera Movement
+        # 3. Explicit Spatial Blocking & Continuity Anchors
+        if spatial_blocking:
+            components.append(f"Stage Blocking & Continuity: {spatial_blocking}.")
+        if object_locations:
+            components.append(f"Tracked Objects & Surface Anchors: {object_locations}.")
+        if camera_axis:
+            components.append(f"Camera Axis & 180-Degree Line: {camera_axis}.")
+
+        # 4. Camera Movement
         components.append(f"Camera: {camera_movement.value}.")
 
-        # 4. Lighting & Color Science
+        # 5. Lighting & Color Science
         components.append(f"Lighting & Palette: {lighting.value}, {color_science.value}.")
 
-        # 5. Environment & Atmosphere (rain, fog, wind, sparks)
+        # 6. Environment & Atmosphere (rain, fog, wind, sparks)
         if environmental_atmosphere:
             components.append(f"Atmospheric Elements: {environmental_atmosphere}.")
 
-        # 6. Cinematic Polish Directive
+        # 7. Cinematic Polish Directive
         components.append("Hyper-detailed cinematic photorealism, professional motion picture quality, 24fps motion cadence.")
 
         return " ".join(components)

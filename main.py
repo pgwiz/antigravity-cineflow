@@ -19,7 +19,12 @@ from pipeline.audio_gen import AudioEngine
 from pipeline.editor import VideoEditor
 from pipeline.youtube_publisher import YouTubePublisher
 from pipeline.chrome_flow import ChromeFlowAutomation
-from pipeline.season import SeasonOrchestrator
+from pipeline.season import SeasonOrchestrator, SEASON_EPISODES
+from pipeline.mockup_generator import (
+    generate_character_assets,
+    generate_object_assets,
+    generate_storyboard_mockups,
+)
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -73,6 +78,8 @@ def parse_args():
     )
     parser.add_argument("--publish-youtube", action="store_true", help="Upload rendered video to YouTube upon completion")
     parser.add_argument("--privacy", choices=["private", "unlisted", "public"], default="private", help="YouTube video privacy")
+    parser.add_argument("--generate-assets", action="store_true", help="Generate named character and object visual asset cards into assets/")
+    parser.add_argument("--generate-mockups", action="store_true", help="Generate 2D spatial stage blocking & visual storyboard mockup cards into mockups/")
     parser.add_argument("--serve", action="store_true", help="Start the FastAPI bridge server")
     parser.add_argument("--port", type=int, default=8080, help="Port for the API bridge server")
 
@@ -232,9 +239,22 @@ def main():
         chrome_bot = ChromeFlowAutomation()
         cookies = chrome_bot.export_and_save_cookies()
         if cookies:
-            print("🎉 Successfully extracted cookies and saved to .env!")
+            print("[OK] Successfully extracted cookies and saved to .env!")
         else:
-            print("⚠️ No Google cookies found. Make sure Chrome is open and logged in.")
+            print("[WARN] No Google cookies found. Make sure Chrome is open and logged in.")
+    elif args.generate_assets:
+        print("\n🎬 Generating all named character and object visual assets...")
+        chars = generate_character_assets()
+        objs = generate_object_assets()
+        print(f"[OK] Assets generation complete: {len(chars)} character cards, {len(objs)} object cards saved to assets/.")
+    elif args.generate_mockups and args.season:
+        print(f"\n🎬 Generating 2D spatial storyboard mockup cards for Season ({args.episodes} episodes)...")
+        orch = SeasonOrchestrator(provider=args.provider)
+        for ep_data in SEASON_EPISODES[:args.episodes]:
+            ep_num = ep_data["episode_number"]
+            sb = orch.build_episode_storyboard(ep_data, aspect_ratio=args.aspect)
+            cards = generate_storyboard_mockups(sb, output_dir=Path(f"mockups/ep{ep_num:02d}"))
+            print(f"[OK] Episode {ep_num:02d}: {len(cards)} mockup cards generated in mockups/ep{ep_num:02d}/")
     elif args.season:
         orchestrator = SeasonOrchestrator(provider=args.provider)
         orchestrator.run_season(

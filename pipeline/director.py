@@ -26,6 +26,11 @@ from pipeline.storyboard import (
     DialogueLine,
     ScreenplayScene,
     Screenplay,
+    SpatialGridPoint,
+    StageCharacterBlocking,
+    TrackedSceneObject,
+    CameraBlocking,
+    SpatialTransition,
 )
 
 class DirectorAgent:
@@ -305,7 +310,56 @@ class DirectorAgent:
                 d_idx = i % len(script_scene.dialogues)
                 dialogue_text = script_scene.dialogues[d_idx].line
 
-            # Formulate action and Veo prompt
+            # Spatial blocking & object tracking for this shot
+            stage_env = f"Gothic architectural environment for {script_scene.slugline}, wet reflective surfaces, stone arches"
+            char_x = -0.4 if (i % 2 == 0) else 0.4
+            char_zone = "STAGE_LEFT_FOREGROUND" if (char_x < 0) else "STAGE_RIGHT_ELEVATED"
+
+            char_blockings = []
+            if main_char:
+                char_blockings.append(
+                    StageCharacterBlocking(
+                        character_id=main_char.character_id,
+                        name=main_char.name,
+                        position=SpatialGridPoint(x=char_x, y=0.2, z=0.5 if char_x > 0 else 0.0, named_zone=char_zone),
+                        facing_angle_deg=45.0 if char_x < 0 else 315.0,
+                        facing_description="Facing center-stage investigative focal point",
+                        eyeline_vector="Gaze fixed on forensic evidence at center stage",
+                        physical_pose="Brooding investigative posture, cloak gathered, standing motionless in rain",
+                        continuity_anchor=f"Anchored at {char_zone}; maintain spatial orientation across cuts",
+                    )
+                )
+
+            tracked_objs = [
+                TrackedSceneObject(
+                    object_id="obj_forensic_evidence",
+                    name="Investigative Altar & Submerged Evidence",
+                    position=SpatialGridPoint(x=0.0, y=0.0, z=0.8, named_zone="CENTER_STAGE_ALTAR"),
+                    container_or_surface="Stone surface at center stage surrounded by flooded water",
+                    visual_state="Submerged relics reflecting neon streetlights through mist",
+                    continuity_lock="Permanent fixture at Center Stage (0,0); do not teleport across camera angles",
+                )
+            ]
+
+            cam_blocking = CameraBlocking(
+                axis_of_action_180="180-degree axis locked on the line between Downstage Entrance and Center Altar; camera operates in South-East quadrant",
+                camera_position=SpatialGridPoint(x=0.3, y=-0.8, z=1.2, named_zone="DOWNSTAGE_RIGHT_TRIPOD"),
+                camera_elevation_angle="Low-Angle 20 degrees upward tilt",
+                camera_fov=lens.value,
+                focal_target=f"{main_char.name if main_char else 'Center scene'} at {char_zone}",
+            )
+
+            # Transitions: last-frame continuation every 3rd shot
+            chain_continuation = (i > 0 and i % 3 == 0)
+            trans_type = TransitionType.DISSOLVE if (i < num_shots - 1 and i % 2 == 1) else TransitionType.HARD_CUT
+
+            spatial_trans = SpatialTransition(
+                transition_type=trans_type,
+                duration_seconds=0.5 if trans_type == TransitionType.DISSOLVE else 0.0,
+                spatial_carryover_notes=f"Preserve character on {'Screen-Left' if char_x < 0 else 'Screen-Right'}; Altar remains centered. Eyeline matches across 180-degree axis.",
+            )
+
+            # Formulate action and Veo prompt with explicit spatial blocking tokens
             action_snippet = f"{script_scene.action[:120]} (Beat {i+1} of {num_shots})"
             veo_prompt = FilmPromptBuilder.build_prompt(
                 subject_action=action_snippet,
@@ -316,11 +370,10 @@ class DirectorAgent:
                 color_science=color_science,
                 visual_dna=char_anchor,
                 environmental_atmosphere="Heavy rain, wet reflective surfaces, atmospheric fog",
+                spatial_blocking=f"{char_blockings[0].name} at {char_blockings[0].position.named_zone}, facing {char_blockings[0].facing_description}" if char_blockings else None,
+                object_locations=f"{tracked_objs[0].name} anchored at {tracked_objs[0].position.named_zone}",
+                camera_axis=cam_blocking.axis_of_action_180,
             )
-
-            # Transitions: last-frame continuation every 3rd shot
-            chain_continuation = (i > 0 and i % 3 == 0)
-            trans_type = TransitionType.DISSOLVE if (i < num_shots - 1 and i % 2 == 1) else TransitionType.HARD_CUT
 
             scene_shot = Scene(
                 scene_number=i + 1,
@@ -334,6 +387,11 @@ class DirectorAgent:
                 lighting=lighting.name,
                 lens=lens.name,
                 color_science=color_science.name,
+                stage_environment=stage_env,
+                character_blockings=char_blockings,
+                tracked_objects=tracked_objs,
+                camera_blocking=cam_blocking,
+                spatial_transition=spatial_trans,
                 action_description=action_snippet,
                 characters_in_shot=[main_char.name] if main_char else [],
                 visual_prompt=veo_prompt,

@@ -27,6 +27,11 @@ from pipeline.storyboard import (
     ScreenplayScene,
     Screenplay,
     TransitionConfig,
+    SpatialGridPoint,
+    StageCharacterBlocking,
+    TrackedSceneObject,
+    CameraBlocking,
+    SpatialTransition,
 )
 from pipeline.video_gen import UseApiGoogleFlowClient, VideoGenerationEngine
 from pipeline.audio_gen import AudioEngine
@@ -36,6 +41,12 @@ from pipeline.youtube_publisher import YouTubePublisher
 from pipeline.chrome_flow import ChromeFlowAutomation
 from pipeline.flow_client import GoogleFlowInternalClient
 from pipeline.season import SeasonOrchestrator, SEASON_CHARACTERS, SEASON_EPISODES
+from pipeline.mockup_generator import (
+    generate_character_assets,
+    generate_object_assets,
+    generate_scene_mockup_card,
+    generate_storyboard_mockups,
+)
 
 
 class TestStoryboardDataModels(unittest.TestCase):
@@ -933,6 +944,159 @@ class TestSeasonProduction(unittest.TestCase):
         char_names = [c.name for c in sb.screenplay.characters]
         self.assertIn("BATMAN", char_names)
         self.assertIn("The Wet Savannah", sb.title)
+
+
+class TestFlowFailureHandlingAndSanitization(unittest.TestCase):
+    """Unit tests for Google Flow failure detection, prompt sanitization, and auto-retry."""
+
+    def test_prompt_safety_sanitization(self):
+        unsafe_prompt = "Batman investigates the murdered body, covered in blood with a deadly weapon near the corpse"
+        sanitized = ChromeFlowAutomation.sanitize_prompt_for_safety(unsafe_prompt)
+        self.assertNotIn("murdered", sanitized.lower())
+        self.assertNotIn("blood", sanitized.lower())
+        self.assertNotIn("weapon", sanitized.lower())
+        self.assertNotIn("corpse", sanitized.lower())
+        self.assertIn("shadowed", sanitized.lower())
+        self.assertIn("rainwater", sanitized.lower())
+        self.assertIn("gadget", sanitized.lower())
+        self.assertIn("abandoned altar", sanitized.lower())
+
+    def test_dismiss_flow_alerts(self):
+        automation = ChromeFlowAutomation()
+        with patch.object(automation, "eval_js", return_value=2):
+            count = automation.dismiss_flow_alerts("ws://dummy")
+            self.assertEqual(count, 2)
+
+
+class TestSpatialSceneBlockingAndContinuity(unittest.TestCase):
+    """Unit tests for 3D stage coordinates, character placement, and object tracking."""
+
+    def test_spatial_grid_point_and_blocking(self):
+        pt = SpatialGridPoint(x=-0.45, y=0.0, z=0.8, named_zone="STAGE_LEFT_ALTAR_TABLE")
+        self.assertEqual(pt.x, -0.45)
+        self.assertEqual(pt.named_zone, "STAGE_LEFT_ALTAR_TABLE")
+
+        blocking = StageCharacterBlocking(
+            character_id="the_mystery_cat",
+            name="The Mystery Cat",
+            position=pt,
+            facing_angle_deg=45.0,
+            facing_description="Facing Downstage-Right towards goblet",
+            eyeline_vector="Eyes fixed on gold ring",
+            physical_pose="Curled on table beside goblet, paws tucked, tail still",
+            continuity_anchor="Anchored on Altar Table Stage-Left; MUST NOT relocate without cut",
+        )
+        self.assertEqual(blocking.character_id, "the_mystery_cat")
+        self.assertIn("Altar Table", blocking.continuity_anchor)
+
+    def test_scene_spatial_and_object_summaries(self):
+        cat_pos = SpatialGridPoint(x=-0.45, y=0.0, z=0.8, named_zone="STAGE_LEFT_TABLE")
+        cat_blocking = StageCharacterBlocking(
+            character_id="the_mystery_cat",
+            name="The Mystery Cat",
+            position=cat_pos,
+            facing_angle_deg=45.0,
+            facing_description="Facing center altar",
+            eyeline_vector="Looking at ring",
+            physical_pose="Curled on mahogany table",
+            continuity_anchor="Anchored to table",
+        )
+        ring_obj = TrackedSceneObject(
+            object_id="obj_gold_ring",
+            name="Golden Wedding Ring",
+            position=SpatialGridPoint(x=0.0, y=0.0, z=0.8, named_zone="CENTER_ALTAR_GOBLET"),
+            container_or_surface="Inside crystal goblet on Center Altar",
+            visual_state="Submerged in mineral saline",
+            continuity_lock="Permanent fixture at Center Altar",
+        )
+        cam = CameraBlocking(
+            axis_of_action_180="180-degree axis locked on Altar-to-Nave line",
+            camera_position=SpatialGridPoint(x=0.25, y=-0.75, z=1.0, named_zone="DOWNSTAGE_RIGHT_CRANE"),
+            camera_elevation_angle="Low-Angle 20 degrees",
+            camera_fov="35mm anamorphic prime",
+            focal_target="Mystery Cat at STAGE_LEFT_TABLE",
+        )
+        trans = SpatialTransition(
+            transition_type=TransitionType.HARD_CUT,
+            duration_seconds=0.5,
+            spatial_carryover_notes="Cat strictly anchored to Altar Table Stage-Left across cut",
+        )
+
+        scene = Scene(
+            scene_number=1,
+            title="Shot 01",
+            action_description="Noir cathedral interior",
+            stage_environment="Flooded Cathedral sanctuary",
+            character_blockings=[cat_blocking],
+            tracked_objects=[ring_obj],
+            camera_blocking=cam,
+            spatial_transition=trans,
+        )
+
+        self.assertIn("The Mystery Cat positioned at STAGE_LEFT_TABLE", scene.get_spatial_summary())
+        self.assertIn("Golden Wedding Ring anchored at CENTER_ALTAR_GOBLET", scene.get_object_summary())
+        self.assertIn("180-degree axis locked on Altar-to-Nave line", scene.get_camera_axis_summary())
+
+    def test_season_storyboard_spatial_continuity(self):
+        orch = SeasonOrchestrator(provider="free")
+        sb = orch.build_episode_storyboard(SEASON_EPISODES[0], aspect_ratio="16:9")
+        for sc in sb.scenes:
+            self.assertGreater(len(sc.character_blockings), 0)
+            self.assertGreater(len(sc.tracked_objects), 0)
+            self.assertIsNotNone(sc.camera_blocking)
+            self.assertIsNotNone(sc.spatial_transition)
+            self.assertIn("Stage Blocking & Continuity", sc.visual_prompt)
+            self.assertIn("Tracked Objects & Surface Anchors", sc.visual_prompt)
+
+
+class TestVisualMockupGenerator(unittest.TestCase):
+    """Unit tests for named character assets, object assets, and storyboard card generator."""
+
+    def test_generate_character_assets(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_dir = Path(tmp_dir) / "characters"
+            files = generate_character_assets(output_dir=out_dir)
+            self.assertEqual(len(files), 5)
+            for f in files:
+                self.assertTrue(f.exists())
+                self.assertGreater(f.stat().st_size, 1000)
+                self.assertTrue(f.name.startswith("char_"))
+                self.assertTrue(f.name.endswith(".png"))
+
+    def test_generate_object_assets(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_dir = Path(tmp_dir) / "objects"
+            files = generate_object_assets(output_dir=out_dir)
+            self.assertEqual(len(files), 5)
+            for f in files:
+                self.assertTrue(f.exists())
+                self.assertGreater(f.stat().st_size, 1000)
+                self.assertTrue(f.name.startswith("obj_"))
+                self.assertTrue(f.name.endswith(".png"))
+
+    def test_generate_scene_mockup_card(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            orch = SeasonOrchestrator(provider="free")
+            sb = orch.build_episode_storyboard(SEASON_EPISODES[0], aspect_ratio="16:9")
+            out_card = Path(tmp_dir) / "test_mockup_card.png"
+            generate_scene_mockup_card(scene=sb.scenes[0], episode_title=sb.title, output_path=out_card)
+            self.assertTrue(out_card.exists())
+            self.assertGreater(out_card.stat().st_size, 5000)
+
+            # Verify image dimensions are 1280x720
+            from PIL import Image
+            with Image.open(out_card) as img:
+                self.assertEqual(img.size, (1280, 720))
+
+    def test_generate_storyboard_mockups(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            orch = SeasonOrchestrator(provider="free")
+            sb = orch.build_episode_storyboard(SEASON_EPISODES[0], aspect_ratio="16:9")
+            cards = generate_storyboard_mockups(sb, output_dir=Path(tmp_dir))
+            self.assertEqual(len(cards), len(sb.scenes))
+            for c in cards:
+                self.assertTrue(c.exists())
+                self.assertGreater(c.stat().st_size, 5000)
 
 
 if __name__ == "__main__":

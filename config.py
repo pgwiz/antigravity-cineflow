@@ -41,6 +41,9 @@ class Settings(BaseModel):
     flow_user_index: int = Field(
         default_factory=lambda: int(os.getenv("GOOGLE_FLOW_USER_INDEX", "5"))  # Default 5 for https://flow.google.com/u/5/
     )
+    flow_project_url: str = Field(
+        default_factory=lambda: os.getenv("GOOGLE_FLOW_PROJECT_URL", "https://flow.google.com/u/0/project/0ceb095a-780b-4c9e-a683-d04f35d492b1")
+    )
     google_flow_cookies: str = Field(
         default_factory=lambda: os.getenv("GOOGLE_FLOW_COOKIES", "")
     )

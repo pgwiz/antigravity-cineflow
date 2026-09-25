@@ -23,7 +23,7 @@ class GoogleFlowInternalClient:
         cookies: Optional[str] = None,
         user_index: Optional[int] = None,
     ):
-        self.raw_cookies = (cookies or settings.google_flow_cookies or "").strip()
+        self.raw_cookies = (cookies if cookies is not None else (settings.google_flow_cookies or "")).strip()
         self.user_index = user_index if user_index is not None else settings.flow_user_index
         self.base_url = f"https://flow.google.com/u/{self.user_index}"
         self.session = requests.Session()
