@@ -1,20 +1,15 @@
 @echo off
-title Google Flow Ultra Login (Port 9222)
+title Google Flow Ultra Login & Cookie Extractor
 echo =======================================================
-echo  Opening Google Chrome for Google Flow Ultra Login
+echo  Google Flow Ultra Login & Cookie Extractor
 echo =======================================================
-echo 1. Chrome will open to Google Sign-In.
-echo 2. Sign in to peterbrian484@gmail.com and complete 2FA.
-echo 3. Google Flow will load at https://flow.google.com/u/5/.
+echo 1. Launching Chrome on a dynamic random port...
+echo 2. Chrome will open to Google Sign-In.
+echo 3. Sign in with peterbrian484@gmail.com and approve 2FA.
+echo 4. Once Google Flow opens, this script auto-extracts
+echo    all cookies into .env for headless generation!
 echo =======================================================
 
-start "Google Flow Chrome" "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --remote-allow-origins=* --user-data-dir="%~dp0temp\flow_profile" "https://accounts.google.com/ServiceLogin?continue=https://flow.google.com/u/5/"
+python main.py --login-flow
 
-echo Chrome launched!
-echo After you complete sign-in in the Chrome window, press any key below to extract cookies:
-pause
-
-echo Extracting cookies from Chrome into .env...
-python main.py --extract-cookies
-echo Done! You can now close this window and run the season.
 pause

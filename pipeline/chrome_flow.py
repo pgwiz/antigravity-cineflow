@@ -9,6 +9,7 @@ seed image upload for continuity chaining, and final video MP4 download.
 import os
 import json
 import time
+import socket
 import base64
 import subprocess
 from pathlib import Path
@@ -31,11 +32,40 @@ class ChromeFlowAutomation:
     ):
         self.chrome_binary = chrome_binary or settings.chrome_binary
         self.user_data_dir = user_data_dir or settings.chrome_user_data_dir
-        self.port = port or settings.chrome_debug_port
         self.user_index = user_index if user_index is not None else settings.flow_user_index
+        self.port = self._resolve_port(port)
         self.target_url = f"https://flow.google.com/u/{self.user_index}/"
         self._proc: Optional[subprocess.Popen] = None
         self._msg_id = 0
+
+    @staticmethod
+    def get_free_port() -> int:
+        """Finds a random ephemeral unreserved free port to avoid common port collisions."""
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            return s.getsockname()[1]
+
+    def _resolve_port(self, explicit_port: Optional[int]) -> int:
+        """Resolves port: explicit > active saved port > new random ephemeral port."""
+        if explicit_port:
+            return explicit_port
+        port_file = self.user_data_dir.parent / "flow_port.txt"
+        if port_file.exists():
+            try:
+                saved = int(port_file.read_text().strip())
+                r = requests.get(f"http://127.0.0.1:{saved}/json/version", timeout=1.0)
+                if r.status_code == 200:
+                    return saved
+            except Exception:
+                pass
+        # Allocate random port and persist
+        new_port = self.get_free_port()
+        try:
+            port_file.parent.mkdir(parents=True, exist_ok=True)
+            port_file.write_text(str(new_port))
+        except Exception:
+            pass
+        return new_port
 
     @property
     def is_port_active(self) -> bool:
@@ -258,10 +288,11 @@ class ChromeFlowAutomation:
         print("4. Once logged in, your session remains permanently saved!")
         print("=======================================================\n")
 
+        login_url = f"https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fflow.google.com%2Fu%2F{self.user_index}%2F"
         self.launch_browser(headless=False)
         tab = self.get_flow_tab()
         if tab and "webSocketDebuggerUrl" in tab:
-            self.execute_cdp(tab["webSocketDebuggerUrl"], "Page.navigate", {"url": self.target_url})
+            self.execute_cdp(tab["webSocketDebuggerUrl"], "Page.navigate", {"url": login_url})
 
         print("[ChromeFlow] Monitoring authentication status (press Ctrl+C to cancel)...")
         while True:
