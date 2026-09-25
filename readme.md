@@ -36,9 +36,18 @@ pip install -r requirements.txt
 
 Create a `.env` file in the root directory:
 ```env
+# Provider: "useapi" (Google Flow via useapi.net) or "genai" (Direct Google AI Studio)
+VIDEO_PROVIDER=useapi
+
+# useapi.net Google Flow API v1 (https://useapi.net/docs/api-google-flow-v1)
+USEAPI_TOKEN=your_useapi_token_here
+USEAPI_MODEL=veo-3.1-fast
+# Optional: USEAPI_ACCOUNT_EMAIL=your_dedicated_account@gmail.com
+
+# Direct Google Gemini & Veo API Key (used for Director Agent & fallback)
 GEMINI_API_KEY=your_gemini_api_key_here
-VIDEO_MODEL=veo-3.1-generate-preview
-DIRECTOR_MODEL=gemini-2.5-flash
+DIRECTOR_MODEL=gemini-3.5-flash-lite
+
 # Optional:
 ELEVENLABS_API_KEY=your_elevenlabs_key
 ```
@@ -51,11 +60,14 @@ For YouTube publishing, place your `client_secret.json` in the root directory.
 
 ### A. Run an Episode / Short Film
 ```bash
-# Generate a 2-scene short (Dry-run mode for testing without using credits)
-python main.py --mode short --duration 16.0 --concept "Batman standing on a gothic gargoyle in the rain overlooking Gotham" --dry-run
+# Generate a test shot (Dry-run with animated SMPTE color bars, zero credits consumed)
+python main.py --mode shot --concept "Batman standing on a gothic gargoyle in the rain overlooking Gotham" --dry-run
 
-# Full live run with Veo video generation
-python main.py --mode episode --duration 120.0 --title "Batman: Arkham Shadows" --concept "Batman investigates an abandoned warehouse at Gotham docks" --aspect 16:9
+# Live generation using useapi.net Google Flow API v1 (Veo 3.1 Fast)
+python main.py --mode short --duration 24.0 --provider useapi --useapi-model veo-3.1-fast --concept "Cyberpunk detective inspecting neon crime scene"
+
+# Live generation using direct Google AI Studio Veo
+python main.py --mode shot --provider genai --concept "Batman descending Wayne Tower"
 ```
 
 ### B. Uploading Reference Images for Character Consistency

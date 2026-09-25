@@ -111,3 +111,17 @@ When composing scene prompts, the agent must adhere to the six layers of visual 
   ]
 }
 ```
+
+---
+
+## Generation Providers
+
+The Director Agent orchestrates video generation across two primary providers:
+1. **useapi.net Google Flow API v1**:
+   - Primary cloud provider wrapping Google Flow (`veo-3.1-fast`, `veo-3.1-quality`, `veo-3.1-lite`, `omni-flash`).
+   - Supports asset uploading (`POST /assets`), character entity consistency (`POST /characters`), native extension (`POST /videos/extend`), and server-side concatenation (`POST /videos/concatenate`).
+2. **Direct Google GenAI SDK**:
+   - Direct API connection using `client.models.generate_videos` with Google AI Studio credentials.
+3. **Animated Fail-Safe**:
+   - Synthesizes dynamic SMPTE test card clips with audio tone when credentials or quota are absent, guaranteeing the production pipeline never produces blank video files.
+

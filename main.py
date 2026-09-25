@@ -49,6 +49,18 @@ def parse_args():
     parser.add_argument("--re-render-scene", type=int, default=None, help="Specific scene number to re-generate in an existing job")
     parser.add_argument("--stitch-only", action="store_true", help="Skip video generation and only stitch existing rendered scene clips")
     parser.add_argument("--job-id", type=str, default=None, help="Specific job ID to resume, stitch, or re-render")
+    parser.add_argument(
+        "--provider",
+        choices=["useapi", "genai"],
+        default=settings.video_provider,
+        help="Video generation provider: 'useapi' (Google Flow via useapi.net) or 'genai' (Direct Google GenAI SDK)",
+    )
+    parser.add_argument(
+        "--useapi-model",
+        choices=["veo-3.1-fast", "veo-3.1-quality", "veo-3.1-lite", "veo-3.1-lite-low-priority", "omni-flash"],
+        default=settings.useapi_model,
+        help="Google Flow AI model on useapi.net (default: veo-3.1-fast)",
+    )
     parser.add_argument("--publish-youtube", action="store_true", help="Upload rendered video to YouTube upon completion")
     parser.add_argument("--privacy", choices=["private", "unlisted", "public"], default="private", help="YouTube video privacy")
     parser.add_argument("--serve", action="store_true", help="Start the FastAPI bridge server")
@@ -135,7 +147,9 @@ def run_pipeline(args):
     scenes_dir.mkdir(exist_ok=True)
 
     # 2. Video Generation Engine
-    video_engine = VideoGenerationEngine()
+    if args.useapi_model:
+        settings.useapi_model = args.useapi_model
+    video_engine = VideoGenerationEngine(provider=args.provider)
 
     if args.re_render_scene is not None:
         print(f"\n[Step 2/5] Re-rendering Scene {args.re_render_scene:02d} only...")

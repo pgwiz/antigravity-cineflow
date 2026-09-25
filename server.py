@@ -60,6 +60,9 @@ def health_check():
     return {
         "status": "healthy",
         "ffmpeg_available": ffmpeg_ok,
+        "video_provider": settings.video_provider,
+        "useapi_configured": bool(settings.useapi_token),
+        "useapi_model": settings.useapi_model,
         "gemini_api_key_configured": bool(settings.gemini_api_key),
         "youtube_secrets_configured": settings.youtube_client_secrets_file.exists(),
         "video_model": settings.video_model,
@@ -149,7 +152,7 @@ def update_storyboard_endpoint(project_id: str, updated_storyboard: Storyboard):
     active_storyboards[project_id] = updated_storyboard
     return {"status": "updated", "project_id": project_id, "scenes": len(updated_storyboard.scenes)}
 
-def _bg_generate(project_id: str, scene_number: Optional[int], dry_run: bool):
+def _bg_generate(project_id: str, scene_number: Optional[int], dry_run: bool, provider: Optional[str] = None):
     """Background task worker for video clip generation."""
     sb = active_storyboards.get(project_id)
     if not sb:
@@ -157,7 +160,7 @@ def _bg_generate(project_id: str, scene_number: Optional[int], dry_run: bool):
         sb = Storyboard.load(job_file)
         active_storyboards[project_id] = sb
 
-    engine = VideoGenerationEngine()
+    engine = VideoGenerationEngine(provider=provider)
     project_output = settings.output_dir / project_id
     scenes_dir = project_output / "scenes"
 
@@ -178,14 +181,16 @@ def trigger_generation_endpoint(
     background_tasks: BackgroundTasks,
     scene_number: Optional[int] = Query(None, description="Optional single scene number to re-generate"),
     dry_run: bool = Query(False, description="Whether to run in synthetic test mode"),
+    provider: Optional[str] = Query(None, description="'useapi' or 'genai' (defaults to config)"),
 ):
     """Dispatches Veo video generation for all scenes (or a specific scene)."""
     # Verify exists
     get_storyboard_endpoint(project_id)
-    background_tasks.add_task(_bg_generate, project_id, scene_number, dry_run)
+    background_tasks.add_task(_bg_generate, project_id, scene_number, dry_run, provider)
     return {
         "status": "dispatched",
         "project_id": project_id,
+        "provider": provider or settings.video_provider,
         "target_scene": scene_number or "all",
         "dry_run": dry_run,
     }

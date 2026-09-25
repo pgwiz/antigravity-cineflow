@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -25,12 +26,29 @@ class Settings(BaseModel):
         default_factory=lambda: Path(os.getenv("YOUTUBE_TOKEN_FILE", BASE_DIR / "youtube_token.json"))
     )
 
-    # Models
+    # Models & Providers
+    video_provider: str = Field(
+        default_factory=lambda: os.getenv("VIDEO_PROVIDER", "useapi")  # "useapi" or "genai"
+    )
     video_model: str = Field(
         default_factory=lambda: os.getenv("VIDEO_MODEL", "veo-3.1-generate-preview")
     )
     director_model: str = Field(
         default_factory=lambda: os.getenv("DIRECTOR_MODEL", "gemini-2.5-flash")
+    )
+
+    # useapi.net Google Flow API v1 Settings
+    useapi_token: str = Field(
+        default_factory=lambda: os.getenv("USEAPI_TOKEN", "")
+    )
+    useapi_model: str = Field(
+        default_factory=lambda: os.getenv("USEAPI_MODEL", "veo-3.1-fast")  # veo-3.1-fast, veo-3.1-quality, veo-3.1-lite, omni-flash
+    )
+    useapi_base_url: str = Field(
+        default_factory=lambda: os.getenv("USEAPI_BASE_URL", "https://api.useapi.net/v1/google-flow")
+    )
+    useapi_account_email: Optional[str] = Field(
+        default_factory=lambda: os.getenv("USEAPI_ACCOUNT_EMAIL", None)
     )
 
     # Paths

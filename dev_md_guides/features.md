@@ -11,7 +11,9 @@ _Last updated: 2026-09-25_
 - [x] **Audio Engine & Soundtrack**: Background ambient synth and rain soundscape generation with audio-video multiplexing.
 - [x] **YouTube Data API v3 Distribution**: Resumable chunked uploading, SEO title, description with chapter timestamps, tags, and privacy management (`private`, `unlisted`, `public`).
 - [x] **FastAPI REST API Bridge**: High-performance REST endpoints (`/api/v1/storyboard/create`, `/api/v1/screenplay/{id}`, `/api/v1/characters/{id}`, `/api/v1/generate/{id}`, `/api/v1/render/{id}`, `/api/v1/publish/{id}`).
-- [x] **Master CLI**: Complete command-line interface supporting scopes (`--mode shot`, `short`, `episode`), `--dry-run`, `--show-screenplay`, `--re-render-scene`, and `--stitch-only`.
+- [x] **useapi.net Google Flow API v1 Client**: Native integration with Google Flow REST API wrapping Veo 3.1 Fast, Quality, Lite, and Omni 1.1 Flash (`POST /videos`, `POST /videos/extend`, `POST /videos/concatenate`, `POST /characters`, and `POST /assets`).
+- [x] **Dynamic Fail-Safe Preview Generation**: High-fidelity animated SMPTE test card and tone synthesis preventing blank video files.
+- [x] **Master CLI**: Complete command-line interface supporting scopes (`--mode shot`, `short`, `episode`), `--provider {useapi,genai}`, `--useapi-model`, `--dry-run`, `--show-screenplay`, `--re-render-scene`, and `--stitch-only`.
 
 ## In Progress
 - [ ] **Multi-character Dialogue Lip-sync & Dubbing**: Automatic phoneme alignment with generated audio tracks.

@@ -2,6 +2,23 @@
 
 All notable changes to the Video Workflow Studio are documented in this file.
 
+## [1.2.0] - 2026-09-25
+
+### Added
+- **useapi.net Google Flow API v1 Integration (`pipeline/video_gen.py`)**:
+  - Full REST client `UseApiGoogleFlowClient` implementing official endpoints from `https://useapi.net/docs/api-google-flow-v1`.
+  - Supports Google Flow AI models: `veo-3.1-fast`, `veo-3.1-quality`, `veo-3.1-lite`, `veo-3.1-lite-low-priority`, and `omni-flash`.
+  - Continuation Chaining via Asset Uploads (`POST /assets`): Uploads extracted last frames from previous scenes to retrieve `mediaGenerationId` for I2V continuation (`startImage`).
+  - Persistent Character Entities (`POST /characters`): Bundles reference images and personality notes into character reference strings (`@character_1`).
+  - Server-Side Video Extension (`POST /videos/extend`): Extends Veo clips by 8 seconds starting from the last second of the source clip.
+  - Server-Side Video Concatenation (`POST /videos/concatenate`): Combines multiple generated clips server-side with overlap trimming (`trimStart: 1.0`).
+- **Dynamic Fail-Safe Preview Generation**:
+  - Upgraded synthetic fallback generator to produce animated SMPTE color bars and audio test tone so dry runs and preview renders are never blank black screens.
+- **Provider Switching in CLI and API**:
+  - Added `--provider useapi` and `--provider genai` to `main.py`.
+  - Added `--useapi-model` to select between fast, quality, lite, and omni models.
+  - Updated `/api/v1/health` and `/api/v1/generate/{project_id}` in `server.py` to support dynamic provider switching.
+
 ## [1.1.0] - 2026-09-25
 
 ### Added
