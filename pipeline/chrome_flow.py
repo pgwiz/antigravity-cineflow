@@ -164,6 +164,37 @@ class ChromeFlowAutomation:
             return True
         return False
 
+    def get_all_cookies(self) -> List[Dict[str, Any]]:
+        """Retrieves all cookies directly from Chrome active memory via CDP."""
+        tab = self.get_flow_tab()
+        if not tab or "webSocketDebuggerUrl" not in tab:
+            return []
+        res = self.execute_cdp(tab["webSocketDebuggerUrl"], "Network.getAllCookies")
+        return res.get("result", {}).get("cookies", [])
+
+    def export_and_save_cookies(self, env_path: Optional[Path] = None) -> str:
+        """Extracts Google session cookies from the live browser and saves to .env."""
+        cookies = self.get_all_cookies()
+        google_cookies = [
+            c for c in cookies
+            if any(dom in c.get("domain", "") for dom in ["google.com", "google", "flow.google.com"])
+        ]
+        if not google_cookies:
+            return ""
+
+        cookie_str = "; ".join(f"{c['name']}={c['value']}" for c in google_cookies)
+        env_file = env_path or Path(".env")
+        if env_file.exists():
+            content = env_file.read_text(encoding="utf-8")
+            if "GOOGLE_FLOW_COOKIES=" in content:
+                import re
+                content = re.sub(r'GOOGLE_FLOW_COOKIES=.*', f'GOOGLE_FLOW_COOKIES="{cookie_str}"', content)
+            else:
+                content += f'\nGOOGLE_FLOW_COOKIES="{cookie_str}"\n'
+            env_file.write_text(content, encoding="utf-8")
+            print(f"[ChromeFlow] 🔑 Extracted {len(google_cookies)} Google cookies and saved to {env_file}!")
+        return cookie_str
+
     def is_authenticated(self) -> Tuple[bool, str]:
         """Checks if the user is authenticated on Google Flow.
         Returns (is_authed, status_description).
@@ -236,6 +267,9 @@ class ChromeFlowAutomation:
             print(f"  Current Status: {desc}")
             if authed:
                 print("\n🎉 SUCCESS! Google Flow is authenticated and ready for automation!\n")
+                cookie_str = self.export_and_save_cookies()
+                if cookie_str:
+                    print(f"🍪 Auto-extracted session cookies and saved to .env for Option 2 (Headless Flow Client)!")
                 break
 
     def generate_video(

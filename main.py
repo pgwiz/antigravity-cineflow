@@ -64,6 +64,7 @@ def parse_args():
         help="Video generation provider: 'free' (Zero-cost AI Keyframes + 2.5D Hollywood Motion), 'chrome' (Chrome CDP Automation), 'flow_internal' (Session Cookie), 'useapi' (Google Flow API v1), or 'genai' (Direct Veo)",
     )
     parser.add_argument("--login-flow", action="store_true", help="Launch interactive Chrome window to authenticate Google Flow Ultra (Option 1)")
+    parser.add_argument("--extract-cookies", action="store_true", help="Extract authenticated session cookies from Chrome and save to .env (Option 2)")
     parser.add_argument(
         "--useapi-model",
         choices=["veo-3.1-fast", "veo-3.1-quality", "veo-3.1-lite", "veo-3.1-lite-low-priority", "omni-flash"],
@@ -227,6 +228,13 @@ def main():
     elif args.login_flow:
         chrome_bot = ChromeFlowAutomation()
         chrome_bot.login_interactive()
+    elif args.extract_cookies:
+        chrome_bot = ChromeFlowAutomation()
+        cookies = chrome_bot.export_and_save_cookies()
+        if cookies:
+            print("🎉 Successfully extracted cookies and saved to .env!")
+        else:
+            print("⚠️ No Google cookies found. Make sure Chrome is open and logged in.")
     elif args.season:
         orchestrator = SeasonOrchestrator(provider=args.provider)
         orchestrator.run_season(
