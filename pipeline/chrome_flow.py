@@ -177,13 +177,20 @@ class ChromeFlowAutomation:
         url_info = self.eval_js(ws_url, "window.location.href") or ""
         if "accounts.google.com" in url_info or "ServiceLogin" in url_info:
             return False, "Redirected to Google Sign-In"
+        if "flow.google.com/about" in url_info:
+            self.eval_js(ws_url, """(() => {
+                const links = Array.from(document.querySelectorAll('a, button'));
+                const btn = links.find(l => (l.innerText || '').includes('Create with Google Flow'));
+                if (btn) btn.click();
+            })()""")
+            return False, "On Flow About page - clicked 'Create with Google Flow', waiting for Sign In or Studio..."
 
         # Check DOM elements
         check_script = """
         (() => {
             const text = document.body ? document.body.innerText : '';
             const hasSignIn = text.includes('Sign in') && !text.includes('Sign out');
-            const hasStudio = !!document.querySelector('textarea, [contenteditable="true"], button[aria-label*="Generate"], button[aria-label*="Create"]');
+            const hasStudio = !!document.querySelector('textarea, [contenteditable="true"], button[aria-label*="Generate"], button[aria-label*="Create"], [role="textbox"]');
             return {
                 url: window.location.href,
                 hasSignIn: hasSignIn,
@@ -198,7 +205,7 @@ class ChromeFlowAutomation:
                 return True, f"Authenticated in Flow Studio ({info.get('url')})"
             if info.get("hasSignIn"):
                 return False, "Google account sign-in required"
-            return True, f"Page loaded ({info.get('title')})"
+            return False, f"Waiting for Flow Studio interface ({info.get('title')})"
 
         return False, "Could not inspect page state"
 
