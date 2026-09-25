@@ -109,12 +109,15 @@ class YouTubePublisher:
 
         meta = self.generate_seo_metadata(storyboard)
 
-        if dry_run or not self.authenticate():
-            print(f"[YouTubePublisher] Dry-Run / Credentials unconfigured. Skipping live upload.")
+        if dry_run:
+            print(f"[YouTubePublisher] Dry-Run mode enabled. Skipping live upload.")
             print(f"  Title: {meta['title']}")
             print(f"  Privacy: {privacy_status}")
-            print(f"  Metadata ready for upload when client_secret.json is installed.")
             return "dry-run-video-id-xyz"
+
+        if not self.authenticate():
+            print(f"[YouTubePublisher] YouTube credentials unconfigured or authentication failed at {self.client_secrets_file}.")
+            return None
 
         try:
             from googleapiclient.http import MediaFileUpload

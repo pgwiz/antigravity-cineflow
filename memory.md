@@ -17,20 +17,21 @@
 - Extracts immutable **AI Visual Prompt Anchors** for each character that are permanently injected into all Veo prompts.
 - Screenplays follow standard Hollywood formatting: Sluglines (`EXT. LOCATION - TIME`), action descriptions in present tense, centered character names, parentheticals, and dialogue.
 
-### 2. Video Generation Providers: Google Flow via useapi.net vs. Direct Google GenAI
+### 2. Video Generation Providers: Free Motion vs. useapi.net vs. Direct GenAI
+- **100% Free AI Motion Engine (`provider="free"`)**:
+  - Requires **zero API tokens, zero subscriptions, and zero cost**.
+  - Fetches pristine AI visual keyframes from Pollinations.ai (Flux/SDXL models) based on scene visual prompt and seed.
+  - Translates the Director Agent's cinematography instructions (`SLOW_PUSH_IN`, `DOLLY_OUT`, `TRACKING_LATERAL`, `CRANE_DESCENT`) into dynamic 2.5D FFmpeg motion equations with 24fps motion cadence and subtle film grain.
+  - Automatically selected by default when `USEAPI_TOKEN` is not provided.
 - **useapi.net Google Flow API v1 (`https://useapi.net/docs/api-google-flow-v1`)**:
   - Unofficial REST API bridge wrapping Google Labs Flow (`flow.google.com`).
   - Supports: `veo-3.1-fast` (default), `veo-3.1-quality`, `veo-3.1-lite`, `veo-3.1-lite-low-priority`, and `omni-flash`.
-  - Authentication: `Authorization: Bearer <USEAPI_TOKEN>` with a connected Google account session (via cookies or guided setup). Includes 300 free reCAPTCHA v3 solving credits before requiring CapSolver/AntiCaptcha.
-  - Video Generation: `POST /videos` with `async: true` and polling on `GET /jobs/{jobid}` until `status == "completed"`, downloading MP4 from signed Google Cloud URLs.
-  - I2V Continuity Chaining: Uses `POST /assets` to upload the preceding clip's extracted last frame and passes the returned `mediaGenerationId` as `startImage`.
-  - Video Extension: `POST /videos/extend` generates an 8s continuation extending from the last ~1s of the source video.
-  - Video Concatenation: `POST /videos/concatenate` joins 2–10 clips directly in the cloud with overlap trimming (`trimStart: 1.0`).
-  - Character Consistency: `POST /characters` creates persistent character entities with reference images and optional voices, usable via `@character_1` in prompts.
-- **Direct Google GenAI SDK**:
-  - Direct connection to Google AI Studio (`models/veo-3.1-generate-preview`, `models/gemini-3.5-flash-lite`).
+  - Requires $15/month subscription token and connected Google account session with captcha credits.
+  - Video Generation (`POST /videos`), Asset Upload (`POST /assets`), Extension (`POST /videos/extend`), and Concatenation (`POST /videos/concatenate`).
+- **Direct Google GenAI SDK (`provider="genai"`)**:
+  - Direct connection to Google AI Studio (`models/veo-3.1-generate-preview`, `models/gemini-3.5-flash-lite`). Requires paid Tier 1 quota.
 - **Dynamic Fail-Safe**:
-  - If API quota is exhausted or credentials are not yet supplied, pipeline automatically falls back to animated SMPTE test patterns with audio tone, preventing blank video files.
+  - Fallback to animated SMPTE test patterns with audio tone, guaranteeing zero blank video files under any network failure or missing credential state.
 
 ### 2. Scene Continuity Strategy
 - **Last-Frame Chaining**: Extracted using FFmpeg `-sseof -0.1 -frames:v 1` to capture the final frame of Scene $N$, then passed to Veo as an input image seed for Scene $N+1$.

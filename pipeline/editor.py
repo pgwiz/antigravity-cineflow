@@ -22,6 +22,22 @@ class VideoEditor:
     def __init__(self, ffmpeg_path: Optional[str] = None):
         self.ffmpeg = ffmpeg_path or settings.ffmpeg_binary
 
+    def get_clip_duration(self, clip_path: Path) -> float:
+        """Returns the exact media duration in seconds via ffprobe, falling back to 8.0."""
+        cmd = [
+            "ffprobe",
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            str(clip_path),
+        ]
+        try:
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+            val = float(res.stdout.strip())
+            return val if val > 0 else 8.0
+        except Exception:
+            return 8.0
+
     def stitch_storyboard(
         self,
         storyboard: Storyboard,
@@ -43,14 +59,16 @@ class VideoEditor:
             s.transition_to_next.transition_type != TransitionType.HARD_CUT for s in valid_scenes[:-1]
         )
 
+        temp_video_path = output_file.with_name(f"{output_file.stem}_temp_stitched.mp4")
+
         if use_transitions and has_special_transitions and len(valid_scenes) > 1:
             try:
-                temp_video = self._stitch_with_xfade(valid_scenes, output_file.with_name("temp_stitched.mp4"))
+                temp_video = self._stitch_with_xfade(valid_scenes, temp_video_path)
             except Exception as e:
                 print(f"[VideoEditor] xfade transition filter failed ({e}), falling back to direct concat...")
-                temp_video = self._stitch_direct_concat(valid_scenes, output_file.with_name("temp_stitched.mp4"))
+                temp_video = self._stitch_direct_concat(valid_scenes, temp_video_path)
         else:
-            temp_video = self._stitch_direct_concat(valid_scenes, output_file.with_name("temp_stitched.mp4"))
+            temp_video = self._stitch_direct_concat(valid_scenes, temp_video_path)
 
         # Multiplex audio soundtrack if available
         if soundtrack_path and soundtrack_path.exists():
@@ -68,7 +86,7 @@ class VideoEditor:
 
     def _stitch_direct_concat(self, scenes: List[Scene], output_path: Path) -> Path:
         """Fast, lossless concatenation using FFmpeg concat demuxer."""
-        concat_txt = output_path.parent / "concat_list.txt"
+        concat_txt = output_path.parent / f"{output_path.stem}_concat_list.txt"
         with open(concat_txt, "w", encoding="utf-8") as f:
             for s in scenes:
                 # Format path with forward slashes for ffmpeg concat
@@ -88,31 +106,40 @@ class VideoEditor:
         ]
         try:
             subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-            if concat_txt.exists():
-                concat_txt.unlink()
             return output_path
         except subprocess.CalledProcessError as e:
             print(f"[VideoEditor] Concat error: {e.stderr.decode('utf-8', errors='ignore')}")
             raise
+        finally:
+            if concat_txt.exists():
+                try:
+                    concat_txt.unlink()
+                except OSError:
+                    pass
 
     def _stitch_with_xfade(self, scenes: List[Scene], output_path: Path) -> Path:
         """Builds an FFmpeg complex filtergraph to render transitions (dissolve, fadeblack, wipe) between clips."""
         inputs = []
         filter_parts = []
         
-        # Calculate offset timings
+        # Calculate offset timings using actual or specified durations
         current_offset = 0.0
         last_out = "[0:v]"
 
         for i, s in enumerate(scenes):
-            inputs.extend(["-i", str(Path(s.output_clip_path).resolve())])
+            clip_p = Path(s.output_clip_path).resolve()
+            inputs.extend(["-i", str(clip_p)])
+            actual_dur = self.get_clip_duration(clip_p)
+            dur = actual_dur if actual_dur > 0 else (s.duration_seconds or 8.0)
+
             if i == 0:
-                current_offset = s.duration_seconds
+                current_offset = dur
                 continue
 
             prev_scene = scenes[i - 1]
             trans = prev_scene.transition_to_next
             trans_dur = trans.duration_seconds if trans.transition_type != TransitionType.HARD_CUT else 0.1
+            trans_dur = min(trans_dur, dur * 0.5)
             
             # Map transition type to FFmpeg xfade filter
             xfade_name = "fade"
@@ -125,10 +152,10 @@ class VideoEditor:
             next_out = f"[v{i}]" if i < len(scenes) - 1 else "[outv]"
             
             filter_parts.append(
-                f"{last_out}[{i}:v]xfade=transition={xfade_name}:duration={trans_dur}:offset={offset_point:0.2f}{next_out}"
+                f"{last_out}[{i}:v]xfade=transition={xfade_name}:duration={trans_dur:0.2f}:offset={offset_point:0.2f}{next_out}"
             )
             last_out = next_out
-            current_offset = offset_point + s.duration_seconds
+            current_offset = offset_point + dur
 
         filter_graph = ";".join(filter_parts)
 

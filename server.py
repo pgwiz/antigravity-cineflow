@@ -128,7 +128,29 @@ def get_characters_endpoint(project_id: str):
     return {
         "project_id": project_id,
         "characters": [c.model_dump() for c in sb.screenplay.characters],
+        "character_bible_markdown": sb.screenplay.format_character_bible_markdown(),
     }
+
+@app.get("/api/v1/character-bible/{project_id}")
+def get_character_bible_endpoint(project_id: str):
+    """Returns the pre-production Character Bible (alias for character inspection)."""
+    return get_characters_endpoint(project_id)
+
+@app.get("/health")
+def health_root():
+    return health_check()
+
+@app.get("/character-bible/{project_id}")
+def get_character_bible_root(project_id: str):
+    return get_characters_endpoint(project_id)
+
+@app.get("/storyboard/{project_id}")
+def get_storyboard_root(project_id: str):
+    return get_storyboard_endpoint(project_id)
+
+@app.get("/screenplay/{project_id}")
+def get_screenplay_root(project_id: str):
+    return get_screenplay_endpoint(project_id)
 
 @app.get("/api/v1/storyboard/{project_id}")
 def get_storyboard_endpoint(project_id: str):
@@ -167,6 +189,13 @@ def _bg_generate(project_id: str, scene_number: Optional[int], dry_run: bool, pr
     if scene_number is not None:
         target_scene = next((s for s in sb.scenes if s.scene_number == scene_number), None)
         if target_scene:
+            # If continuity chaining is enabled, seed from previous scene's last frame
+            if target_scene.chain_from_previous_last_frame:
+                idx = target_scene.scene_number - 1
+                if idx > 0 and idx - 1 < len(sb.scenes):
+                    prev = sb.scenes[idx - 1]
+                    if prev.last_frame_path and Path(prev.last_frame_path).exists():
+                        target_scene.reference_image_path = prev.last_frame_path
             engine.generate_scene_clip(target_scene, scenes_dir, aspect_ratio=sb.aspect_ratio, dry_run=dry_run)
         else:
             print(f"[Server bg_generate] Warning: Scene {scene_number} not found in project {project_id}")
@@ -198,7 +227,7 @@ def trigger_generation_endpoint(
     }
 
 @app.post("/api/v1/render/{project_id}")
-def render_master_endpoint(project_id: str, req: RenderRequest):
+def render_master_endpoint(project_id: str, req: RenderRequest = RenderRequest()):
     """Combines all scene clips with FFmpeg transitions and soundtrack into final master MP4."""
     sb = active_storyboards.get(project_id)
     if not sb:
@@ -241,7 +270,7 @@ def render_master_endpoint(project_id: str, req: RenderRequest):
     }
 
 @app.post("/api/v1/publish/{project_id}")
-def publish_endpoint(project_id: str, req: PublishRequest, dry_run: bool = Query(False)):
+def publish_endpoint(project_id: str, req: PublishRequest = PublishRequest(), dry_run: bool = Query(False)):
     """Uploads rendered final master to YouTube using YouTube Data API v3."""
     sb = active_storyboards.get(project_id)
     if not sb:

@@ -116,12 +116,15 @@ When composing scene prompts, the agent must adhere to the six layers of visual 
 
 ## Generation Providers
 
-The Director Agent orchestrates video generation across two primary providers:
-1. **useapi.net Google Flow API v1**:
+The Director Agent orchestrates video generation across three primary providers:
+1. **100% Free AI Motion Engine (`provider="free"`)**:
+   - Zero-cost, zero-token generation using Pollinations.ai (Flux/SDXL models) + FFmpeg 2.5D Hollywood camera motion synthesis.
+   - Automatically renders the Director's intended camera movements (dolly, pan, tilt, crane descent) with 24fps cinema cadence and fine film grain.
+2. **useapi.net Google Flow API v1 (`provider="useapi"`)**:
    - Primary cloud provider wrapping Google Flow (`veo-3.1-fast`, `veo-3.1-quality`, `veo-3.1-lite`, `omni-flash`).
    - Supports asset uploading (`POST /assets`), character entity consistency (`POST /characters`), native extension (`POST /videos/extend`), and server-side concatenation (`POST /videos/concatenate`).
-2. **Direct Google GenAI SDK**:
+3. **Direct Google GenAI SDK (`provider="genai"`)**:
    - Direct API connection using `client.models.generate_videos` with Google AI Studio credentials.
-3. **Animated Fail-Safe**:
-   - Synthesizes dynamic SMPTE test card clips with audio tone when credentials or quota are absent, guaranteeing the production pipeline never produces blank video files.
+4. **Animated Fail-Safe**:
+   - Synthesizes dynamic SMPTE test card clips with audio tone when network or quota errors occur, guaranteeing the production pipeline never produces blank video files.
 

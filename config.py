@@ -26,9 +26,9 @@ class Settings(BaseModel):
         default_factory=lambda: Path(os.getenv("YOUTUBE_TOKEN_FILE", BASE_DIR / "youtube_token.json"))
     )
 
-    # Models & Providers
+    # Models & Providers: "free" (Zero-cost AI Keyframes + 2.5D Hollywood Motion), "useapi" (Google Flow), "genai" (Direct Veo)
     video_provider: str = Field(
-        default_factory=lambda: os.getenv("VIDEO_PROVIDER", "useapi")  # "useapi" or "genai"
+        default_factory=lambda: os.getenv("VIDEO_PROVIDER", "free" if not os.getenv("USEAPI_TOKEN") else "useapi")
     )
     video_model: str = Field(
         default_factory=lambda: os.getenv("VIDEO_MODEL", "veo-3.1-generate-preview")

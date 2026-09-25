@@ -59,14 +59,17 @@ For YouTube publishing, place your `client_secret.json` in the root directory.
 ## CLI Usage
 
 ### A. Run an Episode / Short Film
-```bash
-# Generate a test shot (Dry-run with animated SMPTE color bars, zero credits consumed)
-python main.py --mode shot --concept "Batman standing on a gothic gargoyle in the rain overlooking Gotham" --dry-run
+# 1. 100% Free AI Video Generation (Zero tokens, zero cost, no API keys required!)
+# Uses Pollinations AI visual generation + Hollywood 2.5D camera motion engine
+python main.py --mode shot --provider free --concept "Batman standing on a gothic gargoyle in the rain overlooking Gotham"
 
-# Live generation using useapi.net Google Flow API v1 (Veo 3.1 Fast)
+# 2. Test shot (Dry-run mode with animated SMPTE color bars)
+python main.py --mode shot --concept "Batman standing on a gothic gargoyle" --dry-run
+
+# 3. Live generation using useapi.net Google Flow API v1 (Veo 3.1 Fast, requires USEAPI_TOKEN)
 python main.py --mode short --duration 24.0 --provider useapi --useapi-model veo-3.1-fast --concept "Cyberpunk detective inspecting neon crime scene"
 
-# Live generation using direct Google AI Studio Veo
+# 4. Live generation using direct Google AI Studio Veo (requires paid quota)
 python main.py --mode shot --provider genai --concept "Batman descending Wayne Tower"
 ```
 

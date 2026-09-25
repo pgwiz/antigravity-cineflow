@@ -51,9 +51,9 @@ def parse_args():
     parser.add_argument("--job-id", type=str, default=None, help="Specific job ID to resume, stitch, or re-render")
     parser.add_argument(
         "--provider",
-        choices=["useapi", "genai"],
+        choices=["free", "useapi", "genai"],
         default=settings.video_provider,
-        help="Video generation provider: 'useapi' (Google Flow via useapi.net) or 'genai' (Direct Google GenAI SDK)",
+        help="Video generation provider: 'free' (Zero-cost AI Keyframes + 2.5D Hollywood Motion), 'useapi' (Google Flow), or 'genai' (Direct Veo)",
     )
     parser.add_argument(
         "--useapi-model",

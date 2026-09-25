@@ -2,6 +2,16 @@
 
 All notable changes to the Video Workflow Studio are documented in this file.
 
+## [1.3.0] - 2026-09-25
+
+### Added
+- **100% Free AI Video Generation Provider (`--provider free`)**:
+  - Implemented `_generate_free_motion_clip` in `pipeline/video_gen.py`.
+  - Integrates free Pollinations.ai visual generation (Flux/SDXL models) requiring **zero API keys, zero subscriptions, and zero cost**.
+  - Maps Director Agent camera directions (`SLOW_PUSH_IN`, `DOLLY_OUT`, `TRACKING_LATERAL`, `CRANE_DESCENT`) directly to FFmpeg 2.5D optical motion equations with cinematic 24fps motion blur and subtle celluloid grain.
+  - Automatically extracts last frames for continuous scene chaining and stitches with ambient audio into finished 720p/1080p MP4 master videos.
+  - Defaults to `provider="free"` when `USEAPI_TOKEN` is not present, enabling immediate out-of-the-box video creation.
+
 ## [1.2.1] - 2026-09-25
 
 ### Fixed & Hardened
