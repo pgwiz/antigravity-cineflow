@@ -70,7 +70,10 @@ class ChromeFlowAutomation:
 
         print(f"[ChromeFlow] Launching Chrome (port {self.port}, profile {self.user_data_dir.name})...")
         try:
-            self._proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            flags = 0
+            if os.name == "nt" and not headless:
+                flags = subprocess.CREATE_NEW_CONSOLE
+            self._proc = subprocess.Popen(cmd, creationflags=flags)
             # Wait for port to become active (up to 15 seconds)
             for _ in range(30):
                 time.sleep(0.5)
