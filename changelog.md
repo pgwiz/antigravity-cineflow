@@ -2,6 +2,30 @@
 
 All notable changes to the Video Workflow Studio are documented in this file.
 
+## [1.3.1] - 2026-09-25
+
+### Fixed & Hardened
+- **Google Flow Duration Snapping (`pipeline/video_gen.py`)**: Snapped requested durations to Google Flow supported set `[4, 6, 8, 10]` with upward tie-breaking `(abs(x - dur_int), -x)` to prevent clip truncation.
+- **Aspect Ratio Normalization (`pipeline/video_gen.py`)**: Added full aspect ratio mapping and synthetic/free motion support for `1:1` (720x720), `4:3` (960x720), and `3:4` (720x960) alongside `16:9` and `9:16`.
+- **Fail-Fast Polling & Error Recovery (`pipeline/video_gen.py`)**:
+  - Immediate abort on polling HTTP 400/401/402/403/404 errors.
+  - Detected and raised errors from `failureReasons`, `code >= 400`, or `"error"` in polling payloads without explicit `failed` status, eliminating 10-minute timeout hangs.
+  - Hardened `extend_video` to raise error on completed response with empty media items.
+  - Safe asset upload email quotation with `urllib.parse.quote` and size limits (20MB image, 100MB video).
+  - Verified non-empty file size (`stat().st_size > 0`) in `extract_last_frame` and `download_file`.
+- **FFmpeg Stitching & Transition Resilience (`pipeline/editor.py`)**:
+  - Dynamically probed clip durations using `ffprobe` (`get_clip_duration`) with configurable `ffprobe_binary` in `config.py`.
+  - Added null safety for `transition_to_next` when scenes lack transition configs and clamped duration to `max(0.05, min(trans_dur, dur * 0.5))`.
+  - Scoped temporary files (`{output_file.stem}_temp_stitched.mp4` and `{output_path.stem}_concat_list.txt`) to prevent race collisions during concurrent stitching runs.
+- **Continuity Chaining on Single-Scene Re-Renders (`main.py`, `server.py`)**:
+  - Populated `target_scene.reference_image_path` from `prev_scene.last_frame_path` using robust list-index matching `target_idx` in both CLI and server background tasks.
+  - Enabled line buffering on `sys.stdout` and `sys.stderr` in `main.py`.
+- **FastAPI Endpoints & Aliases (`server.py`)**:
+  - Provided default instances for `RenderRequest` and `PublishRequest` to prevent HTTP 422 errors on empty POST bodies.
+  - Added route aliases: `/api/v1/character-bible/{project_id}`, `/health`, `/character-bible/{project_id}`, `/storyboard/{project_id}`, and `/screenplay/{project_id}`.
+- **Test Suite Expansion (`tests/test_studio.py`)**:
+  - Expanded test suite from 26 to 36 tests covering duration snapping, extended aspect ratios, upload limits, polling errors, route aliases, default POST bodies, safe None transitions, and CLI single-scene re-render continuity. 100% pass rate.
+
 ## [1.3.0] - 2026-09-25
 
 ### Added

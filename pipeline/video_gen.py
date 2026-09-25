@@ -194,7 +194,7 @@ class UseApiGoogleFlowClient:
             dur_int = int(duration)
         except (ValueError, TypeError):
             dur_int = 8
-        target_dur = min(valid_durations, key=lambda x: abs(x - dur_int))
+        target_dur = min(valid_durations, key=lambda x: (abs(x - dur_int), -x))
 
         body: Dict[str, Any] = {
             "prompt": prompt,
@@ -220,6 +220,8 @@ class UseApiGoogleFlowClient:
             raise RuntimeError(f"Google Flow video request failed [{resp.status_code}]: {resp.text}")
 
         res_json = resp.json()
+        if "error" in res_json or res_json.get("code", 0) >= 400:
+            raise RuntimeError(f"Google Flow video request returned error: {res_json.get('error') or res_json}")
 
         # If synchronous response (200) returned media directly
         if resp.status_code == 200 and "media" in res_json and len(res_json["media"]) > 0:
@@ -319,6 +321,8 @@ class UseApiGoogleFlowClient:
             raise RuntimeError(f"Video extend failed [{resp.status_code}]: {resp.text}")
 
         res_json = resp.json()
+        if "error" in res_json or res_json.get("code", 0) >= 400:
+            raise RuntimeError(f"Video extend request returned error: {res_json.get('error') or res_json}")
         job_id = res_json.get("jobid") or res_json.get("jobId")
 
         elapsed = 0
@@ -345,11 +349,12 @@ class UseApiGoogleFlowClient:
                 resp_obj = data.get("response") if isinstance(data.get("response"), dict) else {}
                 if data.get("status") == "completed":
                     media = resp_obj.get("media") or data.get("media", [])
-                    if media:
+                    if media and len(media) > 0:
                         return {
                             "videoUrl": media[0].get("videoUrl"),
                             "mediaGenerationId": media[0].get("mediaGenerationId"),
                         }
+                    raise RuntimeError("Extend job marked completed but no media items found in payload.")
                 elif (
                     data.get("status") in ["failed", "error"]
                     or "error" in data
@@ -473,7 +478,7 @@ class VideoGenerationEngine:
         ]
         try:
             subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-            return output_image_path.exists()
+            return output_image_path.exists() and output_image_path.stat().st_size > 0
         except Exception as e:
             print(f"[VideoEngine] Error extracting last frame from {video_path}: {e}")
             return False
@@ -663,6 +668,10 @@ class VideoGenerationEngine:
             width, height = (720, 1280)
         elif ar_clean in ["1:1", "square"]:
             width, height = (720, 720)
+        elif ar_clean in ["4:3", "4/3"]:
+            width, height = (960, 720)
+        elif ar_clean in ["3:4", "3/4"]:
+            width, height = (720, 960)
         else:
             width, height = (1280, 720)
         dur = scene.duration_seconds
@@ -720,6 +729,10 @@ class VideoGenerationEngine:
             width, height = (720, 1280)
         elif ar_clean in ["1:1", "square"]:
             width, height = (720, 720)
+        elif ar_clean in ["4:3", "4/3"]:
+            width, height = (960, 720)
+        elif ar_clean in ["3:4", "3/4"]:
+            width, height = (720, 960)
         else:
             width, height = (1280, 720)
         dur = int(scene.duration_seconds or 8)

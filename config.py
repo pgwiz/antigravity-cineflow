@@ -64,6 +64,7 @@ class Settings(BaseModel):
     default_resolution: str = "720p"    # "720p" or "1080p"
     default_fps: int = 24
     ffmpeg_binary: str = "ffmpeg"
+    ffprobe_binary: str = "ffprobe"
 
     # Server Defaults
     server_host: str = "0.0.0.0"

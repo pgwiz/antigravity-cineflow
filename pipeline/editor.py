@@ -25,7 +25,7 @@ class VideoEditor:
     def get_clip_duration(self, clip_path: Path) -> float:
         """Returns the exact media duration in seconds via ffprobe, falling back to 8.0."""
         cmd = [
-            "ffprobe",
+            getattr(settings, "ffprobe_binary", "ffprobe"),
             "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
@@ -56,7 +56,9 @@ class VideoEditor:
 
         # Check if transitions are requested and there are >= 2 scenes
         has_special_transitions = any(
-            s.transition_to_next.transition_type != TransitionType.HARD_CUT for s in valid_scenes[:-1]
+            getattr(s, "transition_to_next", None) is not None
+            and getattr(s.transition_to_next, "transition_type", TransitionType.HARD_CUT) != TransitionType.HARD_CUT
+            for s in valid_scenes[:-1]
         )
 
         temp_video_path = output_file.with_name(f"{output_file.stem}_temp_stitched.mp4")
@@ -137,15 +139,17 @@ class VideoEditor:
                 continue
 
             prev_scene = scenes[i - 1]
-            trans = prev_scene.transition_to_next
-            trans_dur = trans.duration_seconds if trans.transition_type != TransitionType.HARD_CUT else 0.1
-            trans_dur = min(trans_dur, dur * 0.5)
+            trans = getattr(prev_scene, "transition_to_next", None)
+            trans_type = getattr(trans, "transition_type", TransitionType.HARD_CUT) if trans else TransitionType.HARD_CUT
+            raw_trans_dur = getattr(trans, "duration_seconds", 0.5) if trans else 0.5
+            trans_dur = raw_trans_dur if trans_type != TransitionType.HARD_CUT else 0.1
+            trans_dur = max(0.05, min(trans_dur, dur * 0.5))
             
             # Map transition type to FFmpeg xfade filter
             xfade_name = "fade"
-            if trans.transition_type == TransitionType.FADE_BLACK:
+            if trans_type == TransitionType.FADE_BLACK:
                 xfade_name = "fadeblack"
-            elif trans.transition_type == TransitionType.WIPE_LEFT:
+            elif trans_type == TransitionType.WIPE_LEFT:
                 xfade_name = "wipeleft"
 
             offset_point = max(0.0, current_offset - trans_dur)

@@ -187,15 +187,14 @@ def _bg_generate(project_id: str, scene_number: Optional[int], dry_run: bool, pr
     scenes_dir = project_output / "scenes"
 
     if scene_number is not None:
-        target_scene = next((s for s in sb.scenes if s.scene_number == scene_number), None)
-        if target_scene:
+        target_idx = next((i for i, s in enumerate(sb.scenes) if s.scene_number == scene_number), None)
+        if target_idx is not None:
+            target_scene = sb.scenes[target_idx]
             # If continuity chaining is enabled, seed from previous scene's last frame
-            if target_scene.chain_from_previous_last_frame:
-                idx = target_scene.scene_number - 1
-                if idx > 0 and idx - 1 < len(sb.scenes):
-                    prev = sb.scenes[idx - 1]
-                    if prev.last_frame_path and Path(prev.last_frame_path).exists():
-                        target_scene.reference_image_path = prev.last_frame_path
+            if target_scene.chain_from_previous_last_frame and target_idx > 0:
+                prev = sb.scenes[target_idx - 1]
+                if prev.last_frame_path and Path(prev.last_frame_path).exists():
+                    target_scene.reference_image_path = prev.last_frame_path
             engine.generate_scene_clip(target_scene, scenes_dir, aspect_ratio=sb.aspect_ratio, dry_run=dry_run)
         else:
             print(f"[Server bg_generate] Warning: Scene {scene_number} not found in project {project_id}")
@@ -229,6 +228,8 @@ def trigger_generation_endpoint(
 @app.post("/api/v1/render/{project_id}")
 def render_master_endpoint(project_id: str, req: RenderRequest = RenderRequest()):
     """Combines all scene clips with FFmpeg transitions and soundtrack into final master MP4."""
+    if req is None:
+        req = RenderRequest()
     sb = active_storyboards.get(project_id)
     if not sb:
         job_file = settings.jobs_dir / f"{project_id}.json"
@@ -272,6 +273,8 @@ def render_master_endpoint(project_id: str, req: RenderRequest = RenderRequest()
 @app.post("/api/v1/publish/{project_id}")
 def publish_endpoint(project_id: str, req: PublishRequest = PublishRequest(), dry_run: bool = Query(False)):
     """Uploads rendered final master to YouTube using YouTube Data API v3."""
+    if req is None:
+        req = PublishRequest()
     sb = active_storyboards.get(project_id)
     if not sb:
         job_file = settings.jobs_dir / f"{project_id}.json"

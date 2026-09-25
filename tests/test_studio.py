@@ -268,6 +268,157 @@ class TestUseApiGoogleFlowClient(unittest.TestCase):
             self.assertTrue(out_file.exists())
             self.assertEqual(out_file.read_bytes(), b"fakevideo")
 
+    def test_duration_snapping(self):
+        with patch("requests.post") as mock_post:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {"jobid": "job_dur"}
+            mock_post.return_value = mock_resp
+
+            with patch("requests.get") as mock_get:
+                poll_resp = MagicMock()
+                poll_resp.status_code = 200
+                poll_resp.json.return_value = {
+                    "status": "completed",
+                    "response": {"media": [{"videoUrl": "https://gcs/dur.mp4"}]},
+                }
+                mock_get.return_value = poll_resp
+
+                self.client.generate_video(prompt="Test", duration=3, max_wait_seconds=2, poll_interval=1)
+                self.assertEqual(mock_post.call_args[1]["json"]["duration"], 4)
+
+                self.client.generate_video(prompt="Test", duration=5, max_wait_seconds=2, poll_interval=1)
+                self.assertEqual(mock_post.call_args[1]["json"]["duration"], 6)
+
+                self.client.generate_video(prompt="Test", duration=7, max_wait_seconds=2, poll_interval=1)
+                self.assertEqual(mock_post.call_args[1]["json"]["duration"], 8)
+
+                self.client.generate_video(prompt="Test", duration=9, max_wait_seconds=2, poll_interval=1)
+                self.assertEqual(mock_post.call_args[1]["json"]["duration"], 10)
+
+                self.client.generate_video(prompt="Test", duration=15, max_wait_seconds=2, poll_interval=1)
+                self.assertEqual(mock_post.call_args[1]["json"]["duration"], 10)
+
+                self.client.generate_video(prompt="Test", duration="invalid", max_wait_seconds=2, poll_interval=1)
+                self.assertEqual(mock_post.call_args[1]["json"]["duration"], 8)
+
+    def test_aspect_ratio_normalization_extended(self):
+        with patch("requests.post") as mock_post:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {"jobid": "job_ar"}
+            mock_post.return_value = mock_resp
+
+            with patch("requests.get") as mock_get:
+                poll_resp = MagicMock()
+                poll_resp.status_code = 200
+                poll_resp.json.return_value = {
+                    "status": "completed",
+                    "response": {"media": [{"videoUrl": "https://gcs/ar.mp4"}]},
+                }
+                mock_get.return_value = poll_resp
+
+                self.client.generate_video(prompt="Test", aspect_ratio="1:1", max_wait_seconds=2, poll_interval=1)
+                self.assertEqual(mock_post.call_args[1]["json"]["aspectRatio"], "1:1")
+
+                self.client.generate_video(prompt="Test", aspect_ratio="square", max_wait_seconds=2, poll_interval=1)
+                self.assertEqual(mock_post.call_args[1]["json"]["aspectRatio"], "1:1")
+
+                self.client.generate_video(prompt="Test", aspect_ratio="4:3", max_wait_seconds=2, poll_interval=1)
+                self.assertEqual(mock_post.call_args[1]["json"]["aspectRatio"], "4:3")
+
+                self.client.generate_video(prompt="Test", aspect_ratio="3:4", max_wait_seconds=2, poll_interval=1)
+                self.assertEqual(mock_post.call_args[1]["json"]["aspectRatio"], "3:4")
+
+    def test_upload_asset_size_limit_and_email_encoding(self):
+        self.client.email = "director+vip@studio.ai"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            huge_img = Path(tmp_dir) / "huge.png"
+            with open(huge_img, "wb") as f:
+                f.seek(21 * 1024 * 1024)
+                f.write(b"\0")
+            res = self.client.upload_asset(huge_img)
+            self.assertIsNone(res)
+
+            huge_vid = Path(tmp_dir) / "huge.mp4"
+            with open(huge_vid, "wb") as f:
+                f.seek(101 * 1024 * 1024)
+                f.write(b"\0")
+            res = self.client.upload_asset(huge_vid)
+            self.assertIsNone(res)
+
+            with patch("requests.post") as mock_post:
+                mock_resp = MagicMock()
+                mock_resp.status_code = 200
+                mock_resp.json.return_value = {"mediaGenerationId": "mid_enc"}
+                mock_post.return_value = mock_resp
+
+                valid_img = Path(tmp_dir) / "valid.png"
+                valid_img.write_bytes(b"\x89PNG\r\n\x1a\nvalid")
+                self.client.upload_asset(valid_img)
+                called_url = mock_post.call_args[0][0]
+                self.assertIn("director%2Bvip%40studio.ai", called_url)
+
+    def test_polling_failure_schemas(self):
+        with patch("requests.post") as mock_post:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {"jobid": "job_fail"}
+            mock_post.return_value = mock_resp
+
+            with patch("requests.get") as mock_get:
+                poll_resp = MagicMock()
+                poll_resp.status_code = 200
+                poll_resp.json.return_value = {
+                    "status": "in_progress",
+                    "response": {"failureReasons": ["Safety violation in prompt"]},
+                }
+                mock_get.return_value = poll_resp
+
+                with self.assertRaises(RuntimeError) as ctx:
+                    self.client.generate_video("Prompt", max_wait_seconds=2, poll_interval=1)
+                self.assertIn("Safety violation", str(ctx.exception))
+
+            with patch("requests.get") as mock_get:
+                poll_resp = MagicMock()
+                poll_resp.status_code = 200
+                poll_resp.json.return_value = {"error": "Quota exhausted"}
+                mock_get.return_value = poll_resp
+
+                with self.assertRaises(RuntimeError) as ctx:
+                    self.client.generate_video("Prompt", max_wait_seconds=2, poll_interval=1)
+                self.assertIn("Quota exhausted", str(ctx.exception))
+
+            with patch("requests.get") as mock_get:
+                poll_resp = MagicMock()
+                poll_resp.status_code = 401
+                poll_resp.text = "Unauthorized"
+                mock_get.return_value = poll_resp
+
+                with self.assertRaises(RuntimeError) as ctx:
+                    self.client.generate_video("Prompt", max_wait_seconds=2, poll_interval=1)
+                self.assertIn("401", str(ctx.exception))
+
+    def test_extend_video_empty_media_raises(self):
+        with patch("requests.post") as mock_post:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {"jobid": "job_ext_empty"}
+            mock_post.return_value = mock_resp
+
+            with patch("requests.get") as mock_get:
+                poll_resp = MagicMock()
+                poll_resp.status_code = 200
+                poll_resp.json.return_value = {
+                    "status": "completed",
+                    "response": {"media": []},
+                }
+                mock_get.return_value = poll_resp
+
+                with self.assertRaises(RuntimeError) as ctx:
+                    self.client.extend_video("mid_123", "Prompt", max_wait_seconds=2, poll_interval=1)
+                self.assertIn("no media items", str(ctx.exception))
+
 
 class TestFFmpegPipelineExecution(unittest.TestCase):
     """Test actual local FFmpeg executions (synthetic generator, last-frame extraction, stitching)."""
@@ -345,6 +496,38 @@ class TestFFmpegPipelineExecution(unittest.TestCase):
         self.assertTrue(result.exists())
         self.assertGreater(result.stat().st_size, 5000)
 
+    def test_editor_safe_none_transitions_and_get_duration(self):
+        engine = VideoGenerationEngine()
+        editor = VideoEditor()
+
+        c1 = self.work_dir / "c_none_1.mp4"
+        scene1 = Scene(
+            scene_number=1,
+            title="Clip None 1",
+            duration_seconds=2.0,
+            action_description="Act 1",
+        )
+        engine._generate_synthetic_clip(scene1, c1, "16:9")
+        scene1.output_clip_path = str(c1)
+        # Explicitly set transition_to_next to None
+        scene1.transition_to_next = None
+
+        # Verify get_clip_duration reads actual duration or falls back
+        dur = editor.get_clip_duration(c1)
+        self.assertAlmostEqual(dur, 2.0, delta=0.5)
+
+        missing = self.work_dir / "missing_file_xyz.mp4"
+        self.assertEqual(editor.get_clip_duration(missing), 8.0)
+
+        sb = Storyboard(
+            project_id="test_none_trans",
+            title="None Trans Test",
+            scenes=[scene1],
+        )
+        out_f = self.work_dir / "test_none_master.mp4"
+        res = editor.stitch_storyboard(sb, out_f, use_transitions=True)
+        self.assertTrue(res.exists())
+
 
 class TestFastAPIServer(unittest.TestCase):
     """Test FastAPI mini-endpoints using TestClient."""
@@ -396,6 +579,41 @@ class TestFastAPIServer(unittest.TestCase):
         # 5. Render without generated clips should return 400 Bad Request
         res_render = self.client.post(f"/api/v1/render/{project_id}", json={"use_transitions": True, "include_soundtrack": True})
         self.assertEqual(res_render.status_code, 400)
+
+    def test_route_aliases_and_default_post_bodies(self):
+        resp = self.client.get("/health")
+        self.assertEqual(resp.status_code, 200)
+
+        req_payload = {
+            "concept": "A detective in neon cyber noir",
+            "total_duration": 8.0,
+            "clip_duration": 8.0,
+            "aspect_ratio": "16:9",
+        }
+        res = self.client.post("/api/v1/storyboard/create", json=req_payload)
+        self.assertEqual(res.status_code, 200)
+        proj_id = res.json()["project_id"]
+
+        # Alias routes
+        res_alias_bible = self.client.get(f"/api/v1/character-bible/{proj_id}")
+        self.assertEqual(res_alias_bible.status_code, 200)
+
+        res_root_bible = self.client.get(f"/character-bible/{proj_id}")
+        self.assertEqual(res_root_bible.status_code, 200)
+
+        res_root_sb = self.client.get(f"/storyboard/{proj_id}")
+        self.assertEqual(res_root_sb.status_code, 200)
+
+        res_root_sp = self.client.get(f"/screenplay/{proj_id}")
+        self.assertEqual(res_root_sp.status_code, 200)
+
+        # Empty body POST to render endpoint (should parse defaults, then 400 due to unrendered clips)
+        res_empty_render = self.client.post(f"/api/v1/render/{proj_id}")
+        self.assertEqual(res_empty_render.status_code, 400)
+
+        # Empty body POST to publish endpoint (should parse defaults, then 400 due to unrendered master)
+        res_empty_pub = self.client.post(f"/api/v1/publish/{proj_id}")
+        self.assertEqual(res_empty_pub.status_code, 400)
 
 
 class TestVideoGenerationEngineEdgeCases(unittest.TestCase):
@@ -455,6 +673,56 @@ class TestVideoGenerationEngineEdgeCases(unittest.TestCase):
         self.assertIsNotNone(scene1.last_frame_path)
         self.assertTrue(Path(scene1.last_frame_path).exists())
         self.assertEqual(scene2.reference_image_path, scene1.last_frame_path)
+
+    def test_direct_genai_error_handling(self):
+        engine = VideoGenerationEngine(provider="genai", api_key="fake_key")
+        mock_op = MagicMock()
+        mock_op.done = True
+        mock_op.error = "Safety policy violation"
+        mock_op.response = None
+
+        mock_models = MagicMock()
+        mock_models.generate_videos.return_value = mock_op
+        engine.genai_client = MagicMock()
+        engine.genai_client.models = mock_models
+        engine.genai_client.operations.get.return_value = mock_op
+
+        scene = Scene(
+            scene_number=1,
+            title="GenAI Error Scene",
+            duration_seconds=2.0,
+            action_description="Prompt error test",
+        )
+        clip = engine.generate_scene_clip(scene, self.work_dir, aspect_ratio="16:9", dry_run=False)
+        self.assertTrue(clip.exists())
+        self.assertEqual(scene.status, SceneStatus.FAILED)
+        self.assertIn("Safety policy violation", scene.error_message)
+
+    def test_single_scene_rerender_continuity_propagation(self):
+        from server import _bg_generate, active_storyboards
+        scene1 = Scene(
+            scene_number=1,
+            title="Shot 1",
+            duration_seconds=1.0,
+            action_description="Scene 1",
+        )
+        fake_last_frame = self.work_dir / "scene_01_last_frame.png"
+        fake_last_frame.write_bytes(b"fakepngcontent")
+        scene1.last_frame_path = str(fake_last_frame)
+
+        scene2 = Scene(
+            scene_number=2,
+            title="Shot 2",
+            duration_seconds=1.0,
+            action_description="Scene 2",
+            chain_from_previous_last_frame=True,
+        )
+        sb = Storyboard(project_id="test_rerender_proj", title="Rerender Chain", scenes=[scene1, scene2])
+        active_storyboards["test_rerender_proj"] = sb
+
+        with patch("pipeline.video_gen.VideoGenerationEngine.generate_scene_clip"):
+            _bg_generate("test_rerender_proj", scene_number=2, dry_run=True)
+            self.assertEqual(scene2.reference_image_path, str(fake_last_frame))
 
 
 class TestYouTubePublisherEdgeCases(unittest.TestCase):
@@ -523,6 +791,67 @@ class TestDirectorAgentEdgeCases(unittest.TestCase):
         self.assertEqual(len(shots), 2)
         self.assertEqual(shots[0].scene_number, 1)
         self.assertEqual(shots[1].scene_number, 2)
+
+
+class TestMainCLIWorkflow(unittest.TestCase):
+    """Test CLI execution flows including single scene re-render and continuity propagation."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.work_dir = Path(self.temp_dir)
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_cli_single_scene_rerender_with_continuity(self):
+        from main import run_pipeline
+        import argparse
+
+        job_id = "test_cli_chain"
+        job_file = settings.jobs_dir / f"{job_id}.json"
+
+        last_frame_file = self.work_dir / "scene_01_last_frame.png"
+        last_frame_file.write_bytes(b"frame_bytes")
+
+        s1 = Scene(scene_number=1, title="Shot 1", duration_seconds=8.0, action_description="Scene 1", last_frame_path=str(last_frame_file))
+        s2 = Scene(scene_number=2, title="Shot 2", duration_seconds=8.0, action_description="Scene 2", chain_from_previous_last_frame=True)
+        sb = Storyboard(project_id=job_id, title="CLI Test", scenes=[s1, s2])
+        sb.save(job_file)
+
+        mock_args = argparse.Namespace(
+            job_id=job_id,
+            re_render_scene=2,
+            dry_run=True,
+            stitch_only=False,
+            publish_youtube=False,
+            privacy="private",
+            duration=16.0,
+            mode="short",
+            concept="Test",
+            title="Test",
+            genre="Noir",
+            aspect="16:9",
+            character_image=None,
+            environment_image=None,
+            show_screenplay=False,
+            show_characters=False,
+            review_storyboard=False,
+            provider="useapi",
+            useapi_model="veo-3.1-fast",
+            serve=False,
+            port=8080,
+        )
+
+        with patch("pipeline.editor.VideoEditor.stitch_storyboard") as mock_stitch, \
+             patch("pipeline.audio_gen.AudioEngine.generate_soundtrack_for_storyboard") as mock_audio:
+            mock_stitch.return_value = self.work_dir / f"{job_id}_master.mp4"
+            mock_audio.return_value = None
+            run_pipeline(mock_args)
+
+        updated_sb = Storyboard.load(job_file)
+        self.assertEqual(updated_sb.scenes[1].reference_image_path, str(last_frame_file))
+        if job_file.exists():
+            job_file.unlink()
 
 
 if __name__ == "__main__":

@@ -7,9 +7,9 @@ from typing import Optional
 
 # Ensure UTF-8 output encoding on Windows consoles
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 
 from config import settings
 from pipeline.storyboard import Storyboard, SceneStatus
@@ -153,10 +153,17 @@ def run_pipeline(args):
 
     if args.re_render_scene is not None:
         print(f"\n[Step 2/5] Re-rendering Scene {args.re_render_scene:02d} only...")
-        target_scene = next((s for s in storyboard.scenes if s.scene_number == args.re_render_scene), None)
-        if not target_scene:
+        target_idx = next((i for i, s in enumerate(storyboard.scenes) if s.scene_number == args.re_render_scene), None)
+        if target_idx is None:
             print(f"Scene {args.re_render_scene} not found in storyboard.")
             sys.exit(1)
+        target_scene = storyboard.scenes[target_idx]
+        # If continuity chaining is enabled, seed from previous scene's last frame
+        if target_scene.chain_from_previous_last_frame and target_idx > 0:
+            prev = storyboard.scenes[target_idx - 1]
+            if prev.last_frame_path and Path(prev.last_frame_path).exists():
+                print(f"[Pipeline] 🔗 Propagating Scene {prev.scene_number:02d} last frame for continuity: {prev.last_frame_path}")
+                target_scene.reference_image_path = prev.last_frame_path
         video_engine.generate_scene_clip(target_scene, scenes_dir, aspect_ratio=storyboard.aspect_ratio, dry_run=args.dry_run)
         storyboard.save(job_file)
     elif not args.stitch_only:

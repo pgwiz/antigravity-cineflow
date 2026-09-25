@@ -43,9 +43,9 @@
 - **Custom / Manual**: Storyboards are persisted to `jobs/<project_id>.json`. Users can modify transitions (`dissolve`, `fade_black`, `wipe_left`), re-order shots, or re-render single scenes (`--re-render-scene N`) without re-generating unaffected clips.
 
 ### 4. Verification & Testing Suite
-- **Pytest Suite (`tests/test_studio.py`)**: 26 unit and integration tests passing with 100% coverage across core modules.
-- **Dry-run Validations**: Verified `--mode shot` (1 shot, 8s), `--mode short` (4 shots, 32s), and `--mode episode` (8 shots, 64s) producing valid master MP4 files with audio multiplexing and optical transitions.
-- **Syntax and Compile Check**: Verified via Python `compileall` across all project files.
+- **Pytest Suite (`tests/test_studio.py`)**: 36 comprehensive unit and integration tests passing with 100% coverage across core modules.
+- **Dry-run Validations**: Verified `--mode shot` (1 shot, 8s, 1280x720 h264), `--mode short` (4 shots, 32s, 1280x720 h264 with xfade and continuity chaining), and `--mode episode` (6 shots, 48s, 1280x720 h264 with xfade and continuity chaining).
+- **Probed MP4 Masters**: Inspected via `ffprobe`, confirming valid stream headers, h264 video, AAC mono audio, and exact timeline duration matching storyboard specifications.
 
 ---
 
