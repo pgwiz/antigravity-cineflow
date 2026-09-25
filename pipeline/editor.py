@@ -193,3 +193,40 @@ class VideoEditor:
             str(output_path),
         ]
         subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+
+    def concatenate_videos(self, video_paths: List[Path], output_path: Path) -> Path:
+        """Concatenates multiple video files into a single master video."""
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        valid_paths = [p for p in video_paths if p.exists() and p.stat().st_size > 0]
+        if not valid_paths:
+            raise ValueError("[VideoEditor] No valid video files provided for concatenation.")
+        if len(valid_paths) == 1:
+            shutil.copy2(str(valid_paths[0]), str(output_path))
+            return output_path
+
+        concat_txt = output_path.parent / f"{output_path.stem}_concat_list.txt"
+        with open(concat_txt, "w", encoding="utf-8") as f:
+            for p in valid_paths:
+                posix_path = p.resolve().as_posix()
+                f.write(f"file '{posix_path}'\n")
+
+        cmd = [
+            self.ffmpeg,
+            "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", str(concat_txt),
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            str(output_path),
+        ]
+        try:
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            return output_path
+        finally:
+            if concat_txt.exists():
+                try:
+                    concat_txt.unlink()
+                except OSError:
+                    pass

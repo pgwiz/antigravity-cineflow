@@ -2,6 +2,31 @@
 
 All notable changes to the Video Workflow Studio are documented in this file.
 
+## [1.4.0] - 2026-09-25
+
+### Added
+- **Option 1: Google Flow Ultra Chrome CDP Automation (`pipeline/chrome_flow.py`)**:
+  - Implemented `ChromeFlowAutomation` connecting via Chrome DevTools Protocol (CDP) WebSocket and Selenium.
+  - Automatically targets Google Flow accounts by index (`https://flow.google.com/u/5/`) or custom user profile (`temp/flow_profile`).
+  - Added interactive one-time login command (`python main.py --login-flow`) with automated persistent profile caching.
+  - Manages prompt entry, Veo 3.1 model selection, seed-frame upload, generation polling, and direct MP4 downloads.
+- **Option 2: Google Flow Session Cookie Client (`pipeline/flow_client.py`)**:
+  - Implemented `GoogleFlowInternalClient` for headless direct HTTP requests using session cookies (`__Secure-1PSID`, `__Secure-3PSID`, `SAPISID`).
+  - Handles authenticated calls, project initialization, image asset upload, and video generation dispatch.
+- **Option 3 (`useapi.net`) & Option 0 (`free`) Preserved**:
+  - Retained `UseApiGoogleFlowClient` and 100% free Pollinations AI + 2.5D Hollywood camera motion synthesis.
+  - Integrated dynamic failover in `pipeline/video_gen.py` so runs never crash or stall if credentials or browser sessions are missing.
+- **8-Episode Ironical Batman Season Engine (`pipeline/season.py`)**:
+  - Created `SeasonOrchestrator` for *"The Aquatic Mammalian Matrimony"* (60s episodes, 60 total scenes).
+  - Pre-Production Character Bible: Batman / Bruce Wayne, Lady Guppy (The Koi Bride), Sir Longneck (The Giraffe Groom), The Mystery Cat (The Mastermind), and Alfred Pennyworth.
+  - Generates full Hollywood screenplays, sluglines, action, centered dialogue, and exact scene math.
+  - Automatically renders individual episode masters (`output/episode_XX_master.mp4`) and stitches the full season supercut (`output/season_01_complete_master.mp4`) using `concatenate_videos()` in `pipeline/editor.py`.
+- **FastAPI Season Endpoint & Extended Health**:
+  - Added `POST /api/v1/season/run` and updated `GET /api/v1/health` with Chrome and Flow client statuses.
+- **Expanded Test Suite (`tests/test_studio.py`)**:
+  - Added 8 new unit and integration tests covering Chrome automation, Flow client cookie parsing, and Season orchestrator math/assembly.
+  - Test suite expanded to 44 tests with 100% pass rate.
+
 ## [1.3.1] - 2026-09-25
 
 ### Fixed & Hardened

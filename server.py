@@ -19,6 +19,7 @@ from pipeline.video_gen import VideoGenerationEngine
 from pipeline.audio_gen import AudioEngine
 from pipeline.editor import VideoEditor
 from pipeline.youtube_publisher import YouTubePublisher
+from pipeline.season import SeasonOrchestrator
 
 app = FastAPI(
     title="Video Workflow Studio API Bridge",
@@ -46,6 +47,12 @@ class PublishRequest(BaseModel):
     privacy_status: str = Field(default="private", description="'private', 'unlisted', or 'public'")
     thumbnail_path: Optional[str] = Field(default=None, description="Optional custom thumbnail image path")
 
+class SeasonRunRequest(BaseModel):
+    episodes: int = Field(default=8, ge=1, le=8, description="Number of episodes to produce (1-8)")
+    aspect_ratio: str = Field(default="16:9", description="'16:9' or '9:16'")
+    provider: Optional[str] = Field(default=None, description="Generation provider: 'free', 'chrome', 'flow_internal', 'useapi'")
+    dry_run: bool = Field(default=False, description="Whether to run synthetic preview clips")
+
 @app.get("/api/v1/health")
 def health_check():
     """System health and dependency check."""
@@ -61,6 +68,9 @@ def health_check():
         "status": "healthy",
         "ffmpeg_available": ffmpeg_ok,
         "video_provider": settings.video_provider,
+        "flow_user_index": settings.flow_user_index,
+        "chrome_available": Path(settings.chrome_binary).exists(),
+        "flow_internal_configured": bool(settings.google_flow_cookies),
         "useapi_configured": bool(settings.useapi_token),
         "useapi_model": settings.useapi_model,
         "gemini_api_key_configured": bool(settings.gemini_api_key),
@@ -308,3 +318,17 @@ def publish_endpoint(project_id: str, req: PublishRequest = PublishRequest(), dr
 def get_job_status(project_id: str):
     """Returns complete real-time status of all scene clips and rendering output."""
     return get_storyboard_endpoint(project_id)
+
+@app.post("/api/v1/season/run")
+def run_season_endpoint(req: SeasonRunRequest, background_tasks: BackgroundTasks):
+    """Triggers autonomous multi-episode season production."""
+    orchestrator = SeasonOrchestrator(provider=req.provider or settings.video_provider)
+    manifest = orchestrator.run_season(
+        episodes_count=req.episodes,
+        aspect_ratio=req.aspect_ratio,
+        dry_run=req.dry_run,
+    )
+    return {
+        "status": "completed",
+        "manifest": manifest,
+    }

@@ -116,15 +116,22 @@ When composing scene prompts, the agent must adhere to the six layers of visual 
 
 ## Generation Providers
 
-The Director Agent orchestrates video generation across three primary providers:
-1. **100% Free AI Motion Engine (`provider="free"`)**:
+The Director Agent orchestrates video generation across multiple modular providers:
+1. **Option 1: Google Flow Ultra Chrome Automation (`provider="chrome"`)**:
+   - Automated browser interaction via Chrome DevTools Protocol (CDP) WebSocket and Selenium.
+   - Operates directly on user's Ultra subscription at `https://flow.google.com/u/5/` or custom profile.
+   - Enters prompts, selects Veo 3.1 models, uploads starting frames for seed continuation, and downloads finished MP4 clips.
+2. **Option 2: Google Flow Session Cookie Client (`provider="flow_internal"`)**:
+   - Headless HTTP client utilizing authenticated session cookies (`__Secure-1PSID`, `__Secure-3PSID`, `SAPISID`).
+3. **Option 3: useapi.net Google Flow API v1 (`provider="useapi"`)**:
+   - REST API bridge wrapping Google Flow (`veo-3.1-fast`, `veo-3.1-quality`, `veo-3.1-lite`, `omni-flash`).
+   - Supports asset uploading (`POST /assets`), character entity consistency (`POST /characters`), native extension (`POST /videos/extend`), and server-side concatenation (`POST /videos/concatenate`).
+4. **Option 0: 100% Free AI Motion Engine (`provider="free"`)**:
    - Zero-cost, zero-token generation using Pollinations.ai (Flux/SDXL models) + FFmpeg 2.5D Hollywood camera motion synthesis.
    - Automatically renders the Director's intended camera movements (dolly, pan, tilt, crane descent) with 24fps cinema cadence and fine film grain.
-2. **useapi.net Google Flow API v1 (`provider="useapi"`)**:
-   - Primary cloud provider wrapping Google Flow (`veo-3.1-fast`, `veo-3.1-quality`, `veo-3.1-lite`, `omni-flash`).
-   - Supports asset uploading (`POST /assets`), character entity consistency (`POST /characters`), native extension (`POST /videos/extend`), and server-side concatenation (`POST /videos/concatenate`).
-3. **Direct Google GenAI SDK (`provider="genai"`)**:
+5. **Direct Google GenAI SDK (`provider="genai"`)**:
    - Direct API connection using `client.models.generate_videos` with Google AI Studio credentials.
-4. **Animated Fail-Safe**:
+6. **Animated Fail-Safe**:
    - Synthesizes dynamic SMPTE test card clips with audio tone when network or quota errors occur, guaranteeing the production pipeline never produces blank video files.
+
 

@@ -59,27 +59,47 @@ For YouTube publishing, place your `client_secret.json` in the root directory.
 ## CLI Usage
 
 ### A. Run an Episode / Short Film
+```bash
 # 1. 100% Free AI Video Generation (Zero tokens, zero cost, no API keys required!)
 # Uses Pollinations AI visual generation + Hollywood 2.5D camera motion engine
 python main.py --mode shot --provider free --concept "Batman standing on a gothic gargoyle in the rain overlooking Gotham"
 
-# 2. Test shot (Dry-run mode with animated SMPTE color bars)
-python main.py --mode shot --concept "Batman standing on a gothic gargoyle" --dry-run
+# 2. Option 1: Google Flow Ultra via Chrome Automation (flow.google.com/u/5/)
+# First-time login setup (one-time interactive session):
+python main.py --login-flow
+# Thereafter, generate with your Ultra account:
+python main.py --mode short --duration 24.0 --provider chrome --concept "Batman inspecting aquatic crime scene"
 
-# 3. Live generation using useapi.net Google Flow API v1 (Veo 3.1 Fast, requires USEAPI_TOKEN)
+# 3. Option 2: Google Flow Session Cookie Client (headless direct RPC)
+python main.py --mode short --provider flow_internal --concept "Batman pursuing cat across rooftops"
+
+# 4. Option 3: useapi.net Google Flow API v1 (Veo 3.1 Fast, requires USEAPI_TOKEN)
 python main.py --mode short --duration 24.0 --provider useapi --useapi-model veo-3.1-fast --concept "Cyberpunk detective inspecting neon crime scene"
 
-# 4. Live generation using direct Google AI Studio Veo (requires paid quota)
+# 5. Option 4: Direct Google AI Studio Veo (requires paid quota)
 python main.py --mode shot --provider genai --concept "Batman descending Wayne Tower"
 ```
 
-### B. Uploading Reference Images for Character Consistency
+### B. Produce a Complete Season ("Batman: The Aquatic Mammalian Matrimony")
+Produce the full 8-episode ironical noir crime season (*"Fish Married the Giraffe... With a Mystery Cat"*):
+```bash
+# Generate all 8 episodes (each 60 seconds = 7-8 shots) and full season supercut:
+python main.py --season --episodes 8 --provider free
+
+# Or produce using your Google Flow Ultra account:
+python main.py --season --episodes 8 --provider chrome
+
+# Fast preview / CI dry-run verification:
+python main.py --season --episodes 8 --dry-run
+```
+
+### C. Uploading Reference Images for Character Consistency
 Place your reference image in `assets/characters/` and run:
 ```bash
 python main.py --mode episode --duration 90.0 --concept "Batman confronting criminals in an alley" --character-image assets/characters/batman_suit.png
 ```
 
-### C. Reviewing Storyboard Before Rendering
+### D. Reviewing Storyboard Before Rendering
 ```bash
 # Generate storyboard only for inspection/editing
 python main.py --concept "Noir detective mystery" --review-storyboard
@@ -88,14 +108,14 @@ python main.py --concept "Noir detective mystery" --review-storyboard
 python main.py --job-id <PROJECT_ID>
 ```
 
-### D. Re-rendering a Specific Scene
+### E. Re-rendering a Specific Scene
 If Scene 3 needs adjustments:
 ```bash
 python main.py --job-id <PROJECT_ID> --re-render-scene 3
 python main.py --job-id <PROJECT_ID> --stitch-only
 ```
 
-### E. Publishing to YouTube
+### F. Publishing to YouTube
 ```bash
 python main.py --job-id <PROJECT_ID> --stitch-only --publish-youtube --privacy unlisted
 ```
@@ -116,7 +136,7 @@ Interactive documentation is available at `http://localhost:8080/docs`.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/health` | Check system status, FFmpeg availability, and API keys |
+| `GET` | `/api/v1/health` | Check system status, FFmpeg, Chrome, and provider keys |
 | `POST` | `/api/v1/storyboard/create` | Generates explicit shot-by-shot storyboard JSON |
 | `GET` | `/api/v1/storyboard/{project_id}` | Retrieves existing storyboard |
 | `GET` | `/api/v1/screenplay/{project_id}` | Retrieves full Hollywood screenplay transcript |
@@ -125,13 +145,15 @@ Interactive documentation is available at `http://localhost:8080/docs`.
 | `POST` | `/api/v1/generate/{project_id}` | Dispatches Veo generation for all scenes (or single scene) |
 | `POST` | `/api/v1/render/{project_id}` | Compiles master MP4 with FFmpeg transitions and soundtrack |
 | `POST` | `/api/v1/publish/{project_id}` | Uploads rendered video to YouTube |
+| `POST` | `/api/v1/season/run` | Triggers autonomous multi-episode season production |
 | `GET` | `/api/v1/jobs/{project_id}` | Live job status, clip paths, and progress |
 
 ---
 
 ## Running Automated Tests
 
-Run the full unit and integration test suite:
+Run the full unit and integration test suite (44 tests):
 ```bash
 python -m pytest tests/test_studio.py -v
 ```
+

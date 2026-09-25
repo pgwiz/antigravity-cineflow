@@ -17,6 +17,8 @@ from urllib.parse import quote
 import requests
 from config import settings
 from pipeline.storyboard import Storyboard, Scene, SceneStatus
+from pipeline.chrome_flow import ChromeFlowAutomation
+from pipeline.flow_client import GoogleFlowInternalClient
 
 
 class UseApiGoogleFlowClient:
@@ -448,6 +450,8 @@ class VideoGenerationEngine:
         self.provider = (provider or settings.video_provider).lower()
         self.api_key = api_key or settings.gemini_api_key
         self.useapi_client = UseApiGoogleFlowClient()
+        self.chrome_automation = ChromeFlowAutomation()
+        self.flow_internal_client = GoogleFlowInternalClient()
         self.genai_client = None
         self._init_genai_client()
 
@@ -512,6 +516,58 @@ class VideoGenerationEngine:
         if self.provider == "free":
             print(f"\n[VideoEngine] 🌟 Dispatching FREE AI Generation for Scene {scene.scene_number:02d} ({scene.duration_seconds}s)...")
             return self._generate_free_motion_clip(scene, clip_path, last_frame_path, aspect_ratio)
+
+        # -------------------------------------------------------------
+        # PROVIDER: Option 1 Chrome Automation (flow.google.com/u/5/)
+        # -------------------------------------------------------------
+        if self.provider == "chrome":
+            print(f"\n[VideoEngine] 🌐 Dispatching Google Flow Chrome Automation for Scene {scene.scene_number:02d} ({scene.duration_seconds}s)...")
+            start_img = Path(scene.reference_image_path) if scene.reference_image_path else None
+            success = self.chrome_automation.generate_video(
+                prompt=scene.visual_prompt,
+                output_file=clip_path,
+                aspect_ratio=aspect_ratio,
+                duration=int(scene.duration_seconds),
+                model=settings.video_model,
+                start_image_path=start_img,
+            )
+            if success and clip_path.exists() and clip_path.stat().st_size > 0:
+                self.extract_last_frame(clip_path, last_frame_path)
+                scene.output_clip_path = str(clip_path)
+                scene.last_frame_path = str(last_frame_path)
+                scene.status = SceneStatus.COMPLETED
+                print(f"[VideoEngine] Scene {scene.scene_number:02d} generated successfully via Chrome Flow Automation!")
+                return clip_path
+            else:
+                print(f"[VideoEngine] Chrome Flow generation not available or pending login. Falling back to FREE AI Motion...")
+                return self._generate_free_motion_clip(scene, clip_path, last_frame_path, aspect_ratio)
+
+        # -------------------------------------------------------------
+        # PROVIDER: Option 2 Session Cookie Client (flow_internal)
+        # -------------------------------------------------------------
+        if self.provider == "flow_internal":
+            print(f"\n[VideoEngine] 🔑 Dispatching Google Flow Session Cookie Client for Scene {scene.scene_number:02d} ({scene.duration_seconds}s)...")
+            start_media_id = None
+            if scene.reference_image_path and Path(scene.reference_image_path).exists():
+                start_media_id = self.flow_internal_client.upload_asset(Path(scene.reference_image_path))
+            success = self.flow_internal_client.generate_video(
+                prompt=scene.visual_prompt,
+                output_file=clip_path,
+                aspect_ratio=aspect_ratio,
+                duration=int(scene.duration_seconds),
+                model=settings.video_model,
+                start_image_id=start_media_id,
+            )
+            if success and clip_path.exists() and clip_path.stat().st_size > 0:
+                self.extract_last_frame(clip_path, last_frame_path)
+                scene.output_clip_path = str(clip_path)
+                scene.last_frame_path = str(last_frame_path)
+                scene.status = SceneStatus.COMPLETED
+                print(f"[VideoEngine] Scene {scene.scene_number:02d} generated successfully via Session Cookie Client!")
+                return clip_path
+            else:
+                print(f"[VideoEngine] Session cookie generation failed or cookies expired. Falling back to FREE AI Motion...")
+                return self._generate_free_motion_clip(scene, clip_path, last_frame_path, aspect_ratio)
 
         # -------------------------------------------------------------
         # PROVIDER 1: useapi.net Google Flow API v1 (Veo 3.1 & Omni)

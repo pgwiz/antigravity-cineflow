@@ -17,47 +17,53 @@
 - Extracts immutable **AI Visual Prompt Anchors** for each character that are permanently injected into all Veo prompts.
 - Screenplays follow standard Hollywood formatting: Sluglines (`EXT. LOCATION - TIME`), action descriptions in present tense, centered character names, parentheticals, and dialogue.
 
-### 2. Video Generation Providers: Free Motion vs. useapi.net vs. Direct GenAI
-- **100% Free AI Motion Engine (`provider="free"`)**:
+### 2. Video Generation Providers
+- **Option 1: Google Flow Ultra Chrome Automation (`provider="chrome"`)**:
+  - Implemented in `pipeline/chrome_flow.py` using Chrome DevTools Protocol (CDP) WebSocket and Selenium.
+  - Connects to user Google account by index (e.g. `https://flow.google.com/u/5/`) or persistent profile directory (`temp/flow_profile`).
+  - Interactive one-time login via `python main.py --login-flow`. Sessions persist indefinitely without repeated MFA challenges.
+  - Automates prompt input, model selection (`veo-3.1-fast`, `veo-3.1-lite`, `veo-3.1-quality`), seed-frame upload for continuity, and MP4 downloading.
+- **Option 2: Google Flow Session Cookie Client (`provider="flow_internal"`)**:
+  - Implemented in `pipeline/flow_client.py` for direct HTTP requests using session cookies (`__Secure-1PSID`, `__Secure-3PSID`, `SAPISID`).
+  - Configured via `GOOGLE_FLOW_COOKIES` in `.env`.
+- **Option 3: useapi.net Google Flow API v1 (`provider="useapi"`)**:
+  - Unofficial REST API bridge wrapping Google Labs Flow (`flow.google.com`).
+  - Supports `veo-3.1-fast` (default), `veo-3.1-quality`, `veo-3.1-lite`, `veo-3.1-lite-low-priority`, and `omni-flash`.
+  - Configured via `USEAPI_TOKEN` and `USEAPI_FLOW_EMAIL` in `.env`.
+- **Option 0: 100% Free AI Motion Engine (`provider="free"`)**:
   - Requires **zero API tokens, zero subscriptions, and zero cost**.
   - Fetches pristine AI visual keyframes from Pollinations.ai (Flux/SDXL models) based on scene visual prompt and seed.
-  - Translates the Director Agent's cinematography instructions (`SLOW_PUSH_IN`, `DOLLY_OUT`, `TRACKING_LATERAL`, `CRANE_DESCENT`) into dynamic 2.5D FFmpeg motion equations with 24fps motion cadence and subtle film grain.
-  - Automatically selected by default when `USEAPI_TOKEN` is not provided.
-- **useapi.net Google Flow API v1 (`https://useapi.net/docs/api-google-flow-v1`)**:
-  - Unofficial REST API bridge wrapping Google Labs Flow (`flow.google.com`).
-  - Supports: `veo-3.1-fast` (default), `veo-3.1-quality`, `veo-3.1-lite`, `veo-3.1-lite-low-priority`, and `omni-flash`.
-  - Requires $15/month subscription token and connected Google account session with captcha credits.
-  - Video Generation (`POST /videos`), Asset Upload (`POST /assets`), Extension (`POST /videos/extend`), and Concatenation (`POST /videos/concatenate`).
+  - Translates Director Agent camera directions (`SLOW_PUSH_IN`, `DOLLY_OUT`, `TRACKING_LATERAL`, `CRANE_DESCENT`) into dynamic 2.5D FFmpeg motion equations with 24fps cinema cadence and fine celluloid grain.
+  - Safe automatic fallback if external cloud or browser sessions are unavailable.
 - **Direct Google GenAI SDK (`provider="genai"`)**:
-  - Direct connection to Google AI Studio (`models/veo-3.1-generate-preview`, `models/gemini-3.5-flash-lite`). Requires paid Tier 1 quota.
-- **Dynamic Fail-Safe**:
-  - Fallback to animated SMPTE test patterns with audio tone, guaranteeing zero blank video files under any network failure or missing credential state.
+  - Direct connection to Google AI Studio (`models/veo-3.1-generate-preview`). Requires paid Tier 1 quota.
 
-### 2. Scene Continuity Strategy
+### 3. Scene Continuity & Season Architecture
 - **Last-Frame Chaining**: Extracted using FFmpeg `-sseof -0.1 -frames:v 1` to capture the final frame of Scene $N$, then passed to Veo as an input image seed for Scene $N+1$.
-- **Visual DNA Descriptor**: Multimodal analysis with Gemini Vision creates an immutable text description of characters/environments from reference photos in `assets/characters/`, which is injected into all subsequent prompts.
-- **Audio L/J-Cuts**: Narration and ambient score cross over shot boundaries to create perceived perceptual continuity.
-
-### 3. Scene Combination (Assembly)
-- **Automatic**: FFmpeg concat demuxer or `xfade` filter graph stitches all scenes and mixes master soundtrack in one command.
-- **Custom / Manual**: Storyboards are persisted to `jobs/<project_id>.json`. Users can modify transitions (`dissolve`, `fade_black`, `wipe_left`), re-order shots, or re-render single scenes (`--re-render-scene N`) without re-generating unaffected clips.
+- **8-Episode Ironical Batman Season Engine (`pipeline/season.py`)**:
+  - Pre-Production Character Bible: Batman / Bruce Wayne, Lady Guppy (The Koi Bride in brass water-pod), Sir Longneck (The Giraffe Groom in silk bowtie), The Mystery Cat (The Mastermind in trenchcoat & fedora), and Alfred Pennyworth.
+  - Full 8-episode narrative arc *"The Aquatic Mammalian Matrimony"* (60s episodes, 60 total scenes).
+  - Generates individual episode masters (`output/episode_XX_master.mp4`) and concatenated season supercuts (`output/season_01_complete_master.mp4`).
 
 ### 4. Verification & Testing Suite
-- **Pytest Suite (`tests/test_studio.py`)**: 36 comprehensive unit and integration tests passing with 100% coverage across core modules.
-- **Dry-run Validations**: Verified `--mode shot` (1 shot, 8s, 1280x720 h264), `--mode short` (4 shots, 32s, 1280x720 h264 with xfade and continuity chaining), and `--mode episode` (6 shots, 48s, 1280x720 h264 with xfade and continuity chaining).
-- **Probed MP4 Masters**: Inspected via `ffprobe`, confirming valid stream headers, h264 video, AAC mono audio, and exact timeline duration matching storyboard specifications.
+- **Pytest Suite (`tests/test_studio.py`)**: 44 comprehensive unit and integration tests passing (100% pass rate) covering data models, cinematography, useapi client, Chrome automation, Flow client cookies, FFmpeg stitching, last-frame chaining, FastAPI routes, and Season orchestrator math.
+- **Dry-run Validations**: Verified `--mode shot` (8s), `--mode short` (32s), `--mode episode` (48s), and `--season --episodes 8` (480s / 8 minutes season).
+- **Probed MP4 Masters**: Inspected via `ffprobe`, confirming valid stream headers, h264 video, AAC audio, and exact timeline duration matching storyboard specifications.
 
 ---
 
 ## Active File Structure
-- `config.py`: Central settings, model strings, directory paths.
+- `config.py`: Central settings, model strings, directory paths, flow user index, chrome debug port.
 - `skills/film_skills.py`: Cinematography grammar, lens optics, lighting styles, negative prompts.
 - `pipeline/storyboard.py`: Scene data models, timecode calculator, JSON serialization, `metadata` field.
 - `pipeline/director.py`: Director Agent, screenplay generation, visual DNA extraction.
-- `pipeline/video_gen.py`: Veo generation, useapi.net Flow client, direct GenAI SDK fallback, last-frame extraction.
+- `pipeline/chrome_flow.py`: Google Flow Ultra Chrome CDP automation driver.
+- `pipeline/flow_client.py`: Google Flow session cookie internal client.
+- `pipeline/video_gen.py`: Multi-provider video generation engine (Chrome, Flow internal, useapi.net, Free, GenAI).
+- `pipeline/season.py`: 8-episode season orchestrator, screenplay builder, episode assembly.
 - `pipeline/audio_gen.py`: Voiceover narration (ElevenLabs/TTS) and ambient soundtrack generation.
-- `pipeline/editor.py`: FFmpeg stitcher, `xfade` transition builder, audio multiplexer.
+- `pipeline/editor.py`: FFmpeg stitcher, `xfade` transition builder, audio multiplexer, multi-episode concatenator.
 - `pipeline/youtube_publisher.py`: YouTube Data API v3 OAuth2 uploader and SEO metadata.
-- `server.py`: FastAPI REST API bridge with mini-endpoints.
-- `main.py`: Master CLI runner.
-- `tests/test_studio.py`: Automated pytest / unittest regression and integration test suite.
+- `server.py`: FastAPI REST API bridge with mini-endpoints (`/api/v1/season/run`, `/api/v1/health`, etc.).
+- `main.py`: Master CLI runner (`--season`, `--login-flow`, `--provider`, etc.).
+- `tests/test_studio.py`: Automated pytest / unittest regression and integration test suite (44 tests).

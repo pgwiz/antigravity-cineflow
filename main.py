@@ -18,6 +18,8 @@ from pipeline.video_gen import VideoGenerationEngine
 from pipeline.audio_gen import AudioEngine
 from pipeline.editor import VideoEditor
 from pipeline.youtube_publisher import YouTubePublisher
+from pipeline.chrome_flow import ChromeFlowAutomation
+from pipeline.season import SeasonOrchestrator
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -49,12 +51,19 @@ def parse_args():
     parser.add_argument("--re-render-scene", type=int, default=None, help="Specific scene number to re-generate in an existing job")
     parser.add_argument("--stitch-only", action="store_true", help="Skip video generation and only stitch existing rendered scene clips")
     parser.add_argument("--job-id", type=str, default=None, help="Specific job ID to resume, stitch, or re-render")
+
+    # Season Production Options
+    parser.add_argument("--season", action="store_true", help="Generate complete multi-episode season (Batman & The Aquatic Mammalian Matrimony)")
+    parser.add_argument("--episodes", type=int, default=8, help="Number of episodes to produce for the season (default: 8 episodes x 60s)")
+
+    # Provider Options
     parser.add_argument(
         "--provider",
-        choices=["free", "useapi", "genai"],
+        choices=["free", "chrome", "flow_internal", "useapi", "genai"],
         default=settings.video_provider,
-        help="Video generation provider: 'free' (Zero-cost AI Keyframes + 2.5D Hollywood Motion), 'useapi' (Google Flow), or 'genai' (Direct Veo)",
+        help="Video generation provider: 'free' (Zero-cost AI Keyframes + 2.5D Hollywood Motion), 'chrome' (Chrome CDP Automation), 'flow_internal' (Session Cookie), 'useapi' (Google Flow API v1), or 'genai' (Direct Veo)",
     )
+    parser.add_argument("--login-flow", action="store_true", help="Launch interactive Chrome window to authenticate Google Flow Ultra (Option 1)")
     parser.add_argument(
         "--useapi-model",
         choices=["veo-3.1-fast", "veo-3.1-quality", "veo-3.1-lite", "veo-3.1-lite-low-priority", "omni-flash"],
@@ -215,6 +224,16 @@ def main():
     args = parse_args()
     if args.serve:
         run_server(args.port)
+    elif args.login_flow:
+        chrome_bot = ChromeFlowAutomation()
+        chrome_bot.login_interactive()
+    elif args.season:
+        orchestrator = SeasonOrchestrator(provider=args.provider)
+        orchestrator.run_season(
+            episodes_count=args.episodes,
+            aspect_ratio=args.aspect,
+            dry_run=args.dry_run,
+        )
     else:
         run_pipeline(args)
 

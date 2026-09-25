@@ -33,6 +33,9 @@ from pipeline.audio_gen import AudioEngine
 from pipeline.editor import VideoEditor
 from pipeline.director import DirectorAgent
 from pipeline.youtube_publisher import YouTubePublisher
+from pipeline.chrome_flow import ChromeFlowAutomation
+from pipeline.flow_client import GoogleFlowInternalClient
+from pipeline.season import SeasonOrchestrator, SEASON_CHARACTERS, SEASON_EPISODES
 
 
 class TestStoryboardDataModels(unittest.TestCase):
@@ -852,6 +855,84 @@ class TestMainCLIWorkflow(unittest.TestCase):
         self.assertEqual(updated_sb.scenes[1].reference_image_path, str(last_frame_file))
         if job_file.exists():
             job_file.unlink()
+
+
+class TestChromeFlowAutomation(unittest.TestCase):
+    """Unit tests for Option 1 Chrome Automation provider."""
+
+    def test_initialization(self):
+        bot = ChromeFlowAutomation(port=9222, user_index=5)
+        self.assertEqual(bot.port, 9222)
+        self.assertEqual(bot.user_index, 5)
+        self.assertEqual(bot.target_url, "https://flow.google.com/u/5/")
+
+    def test_port_check_when_down(self):
+        bot = ChromeFlowAutomation(port=59999)
+        self.assertFalse(bot.is_port_active)
+
+    def test_get_tabs_when_down(self):
+        bot = ChromeFlowAutomation(port=59999)
+        tabs = bot.get_tabs()
+        self.assertEqual(tabs, [])
+
+
+class TestGoogleFlowInternalClient(unittest.TestCase):
+    """Unit tests for Option 2 Google Flow session cookie client."""
+
+    def test_initialization_and_cookie_parsing(self):
+        raw = "__Secure-1PSID=test_psid_123; __Secure-3PSID=test_psid_456; SAPISID=test_sapisid"
+        client = GoogleFlowInternalClient(cookies=raw, user_index=5)
+        self.assertTrue(client.is_configured)
+        self.assertEqual(client.base_url, "https://flow.google.com/u/5")
+        parsed = client._parse_cookie_string(raw)
+        self.assertEqual(parsed["__Secure-1PSID"], "test_psid_123")
+        self.assertEqual(parsed["__Secure-3PSID"], "test_psid_456")
+        self.assertEqual(parsed["SAPISID"], "test_sapisid")
+
+    def test_unconfigured_client(self):
+        client = GoogleFlowInternalClient(cookies="")
+        self.assertFalse(client.is_configured)
+        ok, msg = client.check_health()
+        self.assertFalse(ok)
+        self.assertIn("not set", msg)
+
+
+class TestSeasonProduction(unittest.TestCase):
+    """Unit tests for Season Orchestrator and Batman story arc."""
+
+    def test_character_bible_integrity(self):
+        self.assertIn("Batman", SEASON_CHARACTERS)
+        self.assertIn("Lady Guppy", SEASON_CHARACTERS)
+        self.assertIn("Sir Longneck", SEASON_CHARACTERS)
+        self.assertIn("The Mystery Cat", SEASON_CHARACTERS)
+        self.assertIn("Alfred Pennyworth", SEASON_CHARACTERS)
+        for name, char in SEASON_CHARACTERS.items():
+            self.assertIn("prompt_anchor", char)
+            self.assertIn("wardrobe_dna", char)
+            self.assertIn("vocal_cadence", char)
+
+    def test_season_episodes_arc(self):
+        self.assertEqual(len(SEASON_EPISODES), 8)
+        total_scenes = sum(len(ep["scenes"]) for ep in SEASON_EPISODES)
+        self.assertEqual(total_scenes, 60)
+        for ep in SEASON_EPISODES:
+            self.assertIn("episode_number", ep)
+            self.assertIn("title", ep)
+            self.assertIn("screenplay", ep)
+            self.assertGreaterEqual(len(ep["scenes"]), 7)
+            # Verify scene math: duration sum is approximately 60 seconds
+            total_dur = sum(s["duration"] for s in ep["scenes"])
+            self.assertGreaterEqual(total_dur, 55.0)
+            self.assertLessEqual(total_dur, 65.0)
+
+    def test_build_episode_storyboard(self):
+        orch = SeasonOrchestrator(provider="free")
+        sb = orch.build_episode_storyboard(SEASON_EPISODES[0], aspect_ratio="16:9")
+        self.assertEqual(sb.aspect_ratio, "16:9")
+        self.assertEqual(len(sb.scenes), 7)
+        char_names = [c.name for c in sb.screenplay.characters]
+        self.assertIn("BATMAN", char_names)
+        self.assertIn("The Wet Savannah", sb.title)
 
 
 if __name__ == "__main__":
