@@ -34,7 +34,8 @@ class UseApiGoogleFlowClient:
         return bool(self.api_token and self.api_token.strip())
 
     def _headers(self, content_type: Optional[str] = "application/json") -> Dict[str, str]:
-        headers = {"Authorization": f"Bearer {self.api_token}"}
+        token = (self.api_token or "").strip()
+        headers = {"Authorization": f"Bearer {token}"}
         if content_type:
             headers["Content-Type"] = content_type
         return headers
@@ -46,6 +47,14 @@ class UseApiGoogleFlowClient:
         """
         if not file_path.exists():
             print(f"[UseApiClient] Asset file not found: {file_path}")
+            return None
+
+        if file_path.stat().st_size == 0:
+            print(f"[UseApiClient] Asset file is empty: {file_path}")
+            return None
+
+        if file_path.stat().st_size > 100 * 1024 * 1024:
+            print(f"[UseApiClient] Asset file exceeds 100MB limit: {file_path}")
             return None
 
         if not self.is_configured:
@@ -117,6 +126,8 @@ class UseApiGoogleFlowClient:
             "imageReference_1": image_generation_ids[0],
             "personalityNotes": personality_notes[:2000],
         }
+        if self.email:
+            body["email"] = self.email
         if len(image_generation_ids) > 1:
             body["imageReference_2"] = image_generation_ids[1]
         if voice_ref:
@@ -157,7 +168,13 @@ class UseApiGoogleFlowClient:
 
         target_model = model or settings.useapi_model
         # Map aspect ratio: "16:9" -> "landscape", "9:16" -> "portrait"
-        ar = "landscape" if aspect_ratio in ["16:9", "landscape"] else ("portrait" if aspect_ratio in ["9:16", "portrait"] else aspect_ratio)
+        ar_lower = (aspect_ratio or "16:9").strip().lower()
+        if ar_lower in ["16:9", "16/9", "landscape", "wide"]:
+            ar = "landscape"
+        elif ar_lower in ["9:16", "9/16", "portrait", "vertical", "tall"]:
+            ar = "portrait"
+        else:
+            ar = "landscape"
 
         body: Dict[str, Any] = {
             "prompt": prompt,
@@ -204,17 +221,28 @@ class UseApiGoogleFlowClient:
             time.sleep(poll_interval)
             elapsed += poll_interval
 
-            poll_resp = requests.get(job_endpoint, headers=self._headers(), timeout=30)
+            try:
+                poll_resp = requests.get(job_endpoint, headers=self._headers(), timeout=30)
+            except Exception as e:
+                print(f"[UseApiClient] Poll request error: {e}")
+                continue
+
             if poll_resp.status_code != 200:
                 print(f"[UseApiClient] Poll warning [{poll_resp.status_code}]: {poll_resp.text}")
                 continue
 
-            job_data = poll_resp.json()
+            try:
+                job_data = poll_resp.json()
+            except Exception as e:
+                print(f"[UseApiClient] Poll warning: failed to parse JSON ({e})")
+                continue
+
             status = job_data.get("status")
             print(f"  [UseApiClient] Job status: {status} ({elapsed}s elapsed)")
 
+            resp_obj = job_data.get("response") if isinstance(job_data.get("response"), dict) else {}
             if status == "completed":
-                media_list = job_data.get("response", {}).get("media") or job_data.get("media", [])
+                media_list = resp_obj.get("media") or job_data.get("media", [])
                 if media_list and len(media_list) > 0:
                     first = media_list[0]
                     return {
@@ -224,7 +252,7 @@ class UseApiGoogleFlowClient:
                 raise RuntimeError("Job marked completed but no media items found in payload.")
 
             elif status in ["failed", "error"]:
-                reasons = job_data.get("response", {}).get("failureReasons") or job_data.get("error")
+                reasons = resp_obj.get("failureReasons") or job_data.get("error")
                 raise RuntimeError(f"Google Flow generation failed: {reasons}")
 
         raise TimeoutError(f"Google Flow generation timed out after {max_wait_seconds} seconds.")
@@ -249,6 +277,9 @@ class UseApiGoogleFlowClient:
             "model": model or settings.useapi_model,
             "async": True,
         }
+        if self.email:
+            body["email"] = self.email
+
         endpoint = f"{self.base_url}/videos/extend"
         print(f"[UseApiClient] POST {endpoint} (extending {media_generation_id[:30]}...)...")
         resp = requests.post(endpoint, headers=self._headers(), json=body, timeout=60)
@@ -263,18 +294,29 @@ class UseApiGoogleFlowClient:
         while elapsed < max_wait_seconds:
             time.sleep(poll_interval)
             elapsed += poll_interval
-            poll_resp = requests.get(job_endpoint, headers=self._headers(), timeout=30)
+            try:
+                poll_resp = requests.get(job_endpoint, headers=self._headers(), timeout=30)
+            except Exception as e:
+                print(f"[UseApiClient] Extend poll request error: {e}")
+                continue
+
             if poll_resp.status_code == 200:
-                data = poll_resp.json()
+                try:
+                    data = poll_resp.json()
+                except Exception as e:
+                    print(f"[UseApiClient] Extend poll JSON parse warning: {e}")
+                    continue
+
+                resp_obj = data.get("response") if isinstance(data.get("response"), dict) else {}
                 if data.get("status") == "completed":
-                    media = data.get("response", {}).get("media") or data.get("media", [])
+                    media = resp_obj.get("media") or data.get("media", [])
                     if media:
                         return {
                             "videoUrl": media[0].get("videoUrl"),
                             "mediaGenerationId": media[0].get("mediaGenerationId"),
                         }
                 elif data.get("status") in ["failed", "error"]:
-                    raise RuntimeError(f"Video extend failed: {data.get('response', {}).get('failureReasons')}")
+                    raise RuntimeError(f"Video extend failed: {resp_obj.get('failureReasons') or data.get('error')}")
 
         raise TimeoutError(f"Video extend timed out after {max_wait_seconds}s")
 
@@ -293,9 +335,13 @@ class UseApiGoogleFlowClient:
                 item["trimStart"] = 1.0
             media_items.append(item)
 
+        body: Dict[str, Any] = {"media": media_items}
+        if self.email:
+            body["email"] = self.email
+
         endpoint = f"{self.base_url}/videos/concatenate"
         print(f"[UseApiClient] POST {endpoint} (combining {len(media_items)} clips server-side)...")
-        resp = requests.post(endpoint, headers=self._headers(), json={"media": media_items}, timeout=120)
+        resp = requests.post(endpoint, headers=self._headers(), json=body, timeout=120)
         if resp.status_code == 200:
             res_json = resp.json()
             encoded_video = res_json.get("encodedVideo")
@@ -429,7 +475,9 @@ class VideoGenerationEngine:
                     raise RuntimeError("useapi.net returned no videoUrl")
 
                 # Download video to local disk
-                self.useapi_client.download_file(res["videoUrl"], clip_path)
+                download_ok = self.useapi_client.download_file(res["videoUrl"], clip_path)
+                if not download_ok or not clip_path.exists() or clip_path.stat().st_size == 0:
+                    raise RuntimeError(f"Failed to download generated video from {res['videoUrl']} to {clip_path}")
                 scene.metadata["mediaGenerationId"] = res.get("mediaGenerationId")
 
                 # Extract last frame for seamless next-scene continuation
@@ -474,13 +522,17 @@ class VideoGenerationEngine:
             config = GenerateVideosConfig(
                 aspect_ratio=aspect_ratio,
                 negative_prompt=scene.negative_prompt,
-                durationSeconds=int(scene.duration_seconds),
+                duration_seconds=int(scene.duration_seconds),
             )
 
             image_input = None
             if scene.reference_image_path and Path(scene.reference_image_path).exists():
                 print(f"  Using reference seed image: {scene.reference_image_path}")
-                image_input = Image.open(scene.reference_image_path)
+                from google.genai import types
+                try:
+                    image_input = types.Image.from_file(location=str(scene.reference_image_path))
+                except Exception:
+                    image_input = Image.open(scene.reference_image_path)
 
             operation = self.genai_client.models.generate_videos(
                 model=settings.video_model,
@@ -504,8 +556,12 @@ class VideoGenerationEngine:
                 raise TimeoutError(f"Video generation timed out after {max_wait_seconds}s")
 
             generated_video = operation.response.generated_videos[0]
-            self.genai_client.files.download(file=generated_video.video)
-            generated_video.video.save(str(clip_path))
+            if hasattr(generated_video.video, "save"):
+                generated_video.video.save(str(clip_path))
+            else:
+                raw_bytes = self.genai_client.files.download(file=generated_video.video)
+                with open(clip_path, "wb") as f:
+                    f.write(raw_bytes)
             print(f"[VideoEngine] Successfully saved: {clip_path.name}")
 
             self.extract_last_frame(clip_path, last_frame_path)

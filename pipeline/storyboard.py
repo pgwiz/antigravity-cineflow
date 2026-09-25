@@ -153,6 +153,7 @@ class Scene(BaseModel):
     last_frame_path: Optional[str] = None
     status: SceneStatus = SceneStatus.PENDING
     error_message: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class Storyboard(BaseModel):
     """Master production storyboard linking Screenplay, Character Bible, and Shot List."""

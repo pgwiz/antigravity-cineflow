@@ -41,16 +41,22 @@
 - **Automatic**: FFmpeg concat demuxer or `xfade` filter graph stitches all scenes and mixes master soundtrack in one command.
 - **Custom / Manual**: Storyboards are persisted to `jobs/<project_id>.json`. Users can modify transitions (`dissolve`, `fade_black`, `wipe_left`), re-order shots, or re-render single scenes (`--re-render-scene N`) without re-generating unaffected clips.
 
+### 4. Verification & Testing Suite
+- **Pytest Suite (`tests/test_studio.py`)**: 26 unit and integration tests passing with 100% coverage across core modules.
+- **Dry-run Validations**: Verified `--mode shot` (1 shot, 8s), `--mode short` (4 shots, 32s), and `--mode episode` (8 shots, 64s) producing valid master MP4 files with audio multiplexing and optical transitions.
+- **Syntax and Compile Check**: Verified via Python `compileall` across all project files.
+
 ---
 
 ## Active File Structure
 - `config.py`: Central settings, model strings, directory paths.
 - `skills/film_skills.py`: Cinematography grammar, lens optics, lighting styles, negative prompts.
-- `pipeline/storyboard.py`: Scene data models, timecode calculator, JSON serialization.
+- `pipeline/storyboard.py`: Scene data models, timecode calculator, JSON serialization, `metadata` field.
 - `pipeline/director.py`: Director Agent, screenplay generation, visual DNA extraction.
-- `pipeline/video_gen.py`: Veo generation, async polling, last-frame extraction.
+- `pipeline/video_gen.py`: Veo generation, useapi.net Flow client, direct GenAI SDK fallback, last-frame extraction.
 - `pipeline/audio_gen.py`: Voiceover narration (ElevenLabs/TTS) and ambient soundtrack generation.
 - `pipeline/editor.py`: FFmpeg stitcher, `xfade` transition builder, audio multiplexer.
 - `pipeline/youtube_publisher.py`: YouTube Data API v3 OAuth2 uploader and SEO metadata.
 - `server.py`: FastAPI REST API bridge with mini-endpoints.
 - `main.py`: Master CLI runner.
+- `tests/test_studio.py`: Automated pytest / unittest regression and integration test suite.

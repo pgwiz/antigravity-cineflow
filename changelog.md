@@ -2,6 +2,29 @@
 
 All notable changes to the Video Workflow Studio are documented in this file.
 
+## [1.2.1] - 2026-09-25
+
+### Fixed & Hardened
+- **Scene Model Metadata Field (`pipeline/storyboard.py`)**: Added `metadata: Dict[str, Any]` to `Scene` model, preventing `AttributeError` when recording `mediaGenerationId` during video generation.
+- **Direct GenAI SDK Compatibility (`pipeline/video_gen.py`)**: Corrected `GenerateVideosConfig` parameter from `durationSeconds` to `duration_seconds` and updated seed image loading to use `types.Image.from_file` with binary save fallback.
+- **useapi.net Google Flow Client Hardening (`pipeline/video_gen.py`)**:
+  - Token whitespace trimming in `_headers()`.
+  - File size validation and empty file checks in `upload_asset()`.
+  - Dedicated Google account email propagation across `create_character()`, `extend_video()`, and `concatenate_videos()`.
+  - Robust aspect ratio normalization (`16:9`, `landscape`, `wide` -> `landscape`; `9:16`, `portrait`, `vertical` -> `portrait`).
+  - Safe JSON response parsing and dictionary validation during async polling to prevent crashes from transient non-JSON gateway responses.
+  - Verification of downloaded video file size before declaring scene generation successful.
+- **Video Editor & Audio Multiplexing (`pipeline/editor.py`)**:
+  - Used `shutil.move` for cross-filesystem file replacement during stitching.
+  - Explicit stream mapping (`-map 0:v:0 -map 1:a:0`) in `_mux_audio` to ensure master soundtrack is mixed without stream collision.
+- **Dynamic Audio Fades (`pipeline/audio_gen.py`)**: Dynamically calculated fade-in/fade-out times in `_generate_ambient_bed` to support short audio segments without clipping.
+- **Screenplay Guard (`pipeline/director.py`)**: Added defensive fallback scene creation in `_decompose_to_shots` when screenplay scenes are empty.
+- **FastAPI Bridge Hardening (`server.py`)**: Added 400 Bad Request exception handling in `render_master_endpoint` for unrendered scenes and warning logs in background tasks.
+
+### Added
+- **Comprehensive Test Suite (`tests/test_studio.py`)**: 26 unit and integration tests verifying data models, cinematography grammar, useapi client methods, FFmpeg stitching and last-frame extraction, FastAPI endpoints, and edge-case fallbacks.
+- **Git Ignore**: Added `.pytest_cache/` to `.gitignore`.
+
 ## [1.2.0] - 2026-09-25
 
 ### Added

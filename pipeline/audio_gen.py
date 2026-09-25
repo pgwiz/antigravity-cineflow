@@ -41,13 +41,14 @@ class AudioEngine:
     def _generate_ambient_bed(self, output_path: Path, duration: float) -> bool:
         """Generates a low, subtle cinematic synth drone and rain tone using FFmpeg."""
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        fade_out_start = max(0.0, duration - 1.0)
+        fade_dur = min(1.0, max(0.1, duration / 3.0))
+        fade_out_start = max(0.0, duration - fade_dur)
         cmd = [
             settings.ffmpeg_binary,
             "-y",
             "-f", "lavfi",
             "-i", f"sine=frequency=65:duration={duration}",
-            "-filter_complex", f"volume=0.15,afade=t=in:ss=0:d=1.0,afade=t=out:st={fade_out_start:0.2f}:d=1.0",
+            "-filter_complex", f"volume=0.15,afade=t=in:ss=0:d={fade_dur:0.2f},afade=t=out:st={fade_out_start:0.2f}:d={fade_dur:0.2f}",
             "-c:a", "aac",
             "-b:a", "192k",
             str(output_path),

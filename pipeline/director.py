@@ -276,6 +276,16 @@ class DirectorAgent:
         main_char = screenplay.characters[0] if screenplay.characters else None
         char_anchor = main_char.prompt_anchor if main_char else "Mysterious protagonist"
 
+        if not screenplay.scenes:
+            screenplay.scenes = [
+                ScreenplayScene(
+                    scene_number=1,
+                    slugline="EXT. SCENE - NIGHT",
+                    action="Atmospheric cinematic visuals unfold in high definition.",
+                    dramatic_beat="Establishing Beat",
+                )
+            ]
+
         for i in range(num_shots):
             dur = clip_duration
             start_m, start_s = divmod(int(current_time), 60)

@@ -168,6 +168,8 @@ def _bg_generate(project_id: str, scene_number: Optional[int], dry_run: bool, pr
         target_scene = next((s for s in sb.scenes if s.scene_number == scene_number), None)
         if target_scene:
             engine.generate_scene_clip(target_scene, scenes_dir, aspect_ratio=sb.aspect_ratio, dry_run=dry_run)
+        else:
+            print(f"[Server bg_generate] Warning: Scene {scene_number} not found in project {project_id}")
     else:
         engine.generate_all_scenes(sb, project_output, dry_run=dry_run)
 
@@ -217,12 +219,15 @@ def render_master_endpoint(project_id: str, req: RenderRequest):
 
     # Video assembly
     editor = VideoEditor()
-    out_video = editor.stitch_storyboard(
-        storyboard=sb,
-        output_file=final_master_path,
-        soundtrack_path=soundtrack_path,
-        use_transitions=req.use_transitions,
-    )
+    try:
+        out_video = editor.stitch_storyboard(
+            storyboard=sb,
+            output_file=final_master_path,
+            soundtrack_path=soundtrack_path,
+            use_transitions=req.use_transitions,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     sb.final_video_path = str(out_video)
     sb.save(settings.jobs_dir / f"{project_id}.json")

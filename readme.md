@@ -116,8 +116,19 @@ Interactive documentation is available at `http://localhost:8080/docs`.
 | `GET` | `/api/v1/health` | Check system status, FFmpeg availability, and API keys |
 | `POST` | `/api/v1/storyboard/create` | Generates explicit shot-by-shot storyboard JSON |
 | `GET` | `/api/v1/storyboard/{project_id}` | Retrieves existing storyboard |
+| `GET` | `/api/v1/screenplay/{project_id}` | Retrieves full Hollywood screenplay transcript |
+| `GET` | `/api/v1/characters/{project_id}` | Retrieves pre-production Character Bible |
 | `PUT` | `/api/v1/storyboard/{project_id}` | Updates scene prompts, camera angles, or transitions |
 | `POST` | `/api/v1/generate/{project_id}` | Dispatches Veo generation for all scenes (or single scene) |
 | `POST` | `/api/v1/render/{project_id}` | Compiles master MP4 with FFmpeg transitions and soundtrack |
 | `POST` | `/api/v1/publish/{project_id}` | Uploads rendered video to YouTube |
 | `GET` | `/api/v1/jobs/{project_id}` | Live job status, clip paths, and progress |
+
+---
+
+## Running Automated Tests
+
+Run the full unit and integration test suite:
+```bash
+python -m pytest tests/test_studio.py -v
+```

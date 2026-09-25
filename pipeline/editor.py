@@ -1,6 +1,7 @@
 """Video Editor - FFmpeg stitcher supporting automatic concatenation, xfade transitions, and custom edit specs."""
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from typing import List, Optional
@@ -59,9 +60,7 @@ class VideoEditor:
                 temp_video.unlink()
         else:
             if temp_video != output_file:
-                if output_file.exists():
-                    output_file.unlink()
-                temp_video.rename(output_file)
+                shutil.move(str(temp_video), str(output_file))
 
         storyboard.final_video_path = str(output_file)
         print(f"[VideoEditor] Final master compiled successfully: {output_file}")
@@ -154,6 +153,8 @@ class VideoEditor:
             "-y",
             "-i", str(video_path),
             "-i", str(audio_path),
+            "-map", "0:v:0",
+            "-map", "1:a:0",
             "-c:v", "copy",
             "-c:a", "aac",
             "-b:a", "192k",
