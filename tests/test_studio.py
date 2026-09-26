@@ -1099,5 +1099,115 @@ class TestVisualMockupGenerator(unittest.TestCase):
                 self.assertGreater(c.stat().st_size, 5000)
 
 
+class TestTextFirstAndDiscussionWorkflow(unittest.TestCase):
+    """Unit and integration tests for interactive discussion and text-first production dossiers."""
+
+    def test_director_agent_discuss_keywords(self):
+        director = DirectorAgent()
+        res_cat = director.discuss("What if the mystery cat steals the maritime key from the altar?")
+        self.assertIn("reply", res_cat)
+        self.assertIsInstance(res_cat.get("ready_for_instructions"), bool)
+        self.assertTrue(any(w in res_cat["reply"].lower() for w in ["cat", "feline", "key", "mystery"]))
+
+        res_fish = director.discuss("How should we present Lady Guppy the koi fish?")
+        self.assertIn("reply", res_fish)
+        self.assertTrue(any(w in res_fish["reply"].lower() for w in ["guppy", "fish", "koi", "lady"]))
+
+    def test_director_agent_discuss_generate_trigger(self):
+        director = DirectorAgent()
+        res = director.discuss("generate")
+        self.assertEqual(res.get("action"), "generate")
+        self.assertTrue(res.get("ready_for_instructions"))
+
+    def test_storyboard_production_dossier_completeness(self):
+        director = DirectorAgent()
+        sb = director.create_storyboard(
+            concept="Batman investigates a flooded cathedral with a mystery cat",
+            total_duration=24.0,
+            clip_duration=8.0,
+            genre="Ironical Crime Noir",
+        )
+        dossier = sb.generate_production_dossier_text()
+        self.assertIn("PRODUCTION BLUEPRINT & INSTRUCTION DOSSIER", dossier)
+        self.assertIn("SECTION 1: EXECUTIVE PRODUCTION BRIEF", dossier)
+        self.assertIn("SECTION 2: PRE-PRODUCTION CHARACTER BIBLE", dossier)
+        self.assertIn("SECTION 3: 3D SPATIAL STAGE & TRACKED OBJECTS MATRIX", dossier)
+        self.assertIn("SECTION 4: FULL HOLLYWOOD SCREENPLAY TRANSCRIPT", dossier)
+        self.assertIn("SECTION 5: SHOT-BY-SHOT CAMERA INSTRUCTIONS & VEO PROMPTS", dossier)
+        self.assertIn("SECTION 6: HUMAN & AI EXECUTION INSTRUCTIONS", dossier)
+        self.assertIn("EXACT VEO PROMPT", dossier)
+        self.assertIn("--media", dossier)
+
+    def test_season_production_book_generation(self):
+        orch = SeasonOrchestrator(provider="free")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_file = Path(tmp_dir) / "test_season_book.txt"
+            book = orch.generate_season_production_book(episodes_count=3, output_file=out_file)
+            self.assertTrue(out_file.exists())
+            self.assertIn("SEASON PRODUCTION BOOK & MASTER DIRECTORIAL INSTRUCTIONS", book)
+            self.assertIn("BATMAN: THE AQUATIC MAMMALIAN MATRIMONY", book)
+            self.assertIn("EPISODE 01: THE WET SAVANNAH", book)
+            self.assertIn("EPISODE 02: FIN AND HOOF", book)
+            self.assertIn("EPISODE 03: WHISPERING WHISKERS", book)
+            self.assertIn("Lady Guppy", book)
+            self.assertIn("Sir Longneck", book)
+            self.assertIn("The Mystery Cat", book)
+            self.assertIn("EXACT VEO PROMPT", book)
+
+    def test_season_run_text_mode_no_media(self):
+        orch = SeasonOrchestrator(provider="free")
+        res = orch.run_season(episodes_count=2, generate_media=False)
+        self.assertEqual(res["mode"], "text_instructions_only")
+        self.assertIn("production_book_path", res)
+        self.assertTrue(Path(res["production_book_path"]).exists())
+
+    def test_fastapi_discussion_and_dossier_endpoints(self):
+        from fastapi.testclient import TestClient
+        from server import app, active_storyboards
+        client = TestClient(app)
+
+        # 1. Discuss endpoint
+        resp_disc = client.post("/api/v1/discuss", json={"message": "Can we give the cat a tilted fedora?"})
+        self.assertEqual(resp_disc.status_code, 200)
+        data_disc = resp_disc.json()
+        self.assertIn("reply", data_disc)
+
+        # 2. Dossier endpoint
+        director = DirectorAgent()
+        sb = director.create_storyboard(concept="Test API Dossier", total_duration=16.0)
+        active_storyboards[sb.project_id] = sb
+        resp_dos = client.get(f"/api/v1/dossier/{sb.project_id}")
+        self.assertEqual(resp_dos.status_code, 200)
+        data_dos = resp_dos.json()
+        self.assertIn("dossier", data_dos)
+        self.assertIn("SECTION 1: EXECUTIVE PRODUCTION BRIEF", data_dos["dossier"])
+
+        # 3. Season Book endpoint
+        resp_sb = client.post("/api/v1/season/book?episodes=2")
+        self.assertEqual(resp_sb.status_code, 200)
+        data_sb = resp_sb.json()
+        self.assertIn("production_book", data_sb)
+        self.assertEqual(data_sb["episodes_count"], 2)
+
+    def test_cli_media_and_discuss_flags(self):
+        from main import parse_args
+        import sys
+
+        # Test default: media is False
+        old_argv = sys.argv
+        sys.argv = ["main.py", "--concept", "Batman noir test"]
+        args = parse_args()
+        self.assertFalse(args.media)
+        self.assertFalse(args.discuss)
+
+        # Test with --media
+        sys.argv = ["main.py", "--media", "--discuss"]
+        args = parse_args()
+        self.assertTrue(args.media)
+        self.assertTrue(args.discuss)
+        sys.argv = old_argv
+
+
 if __name__ == "__main__":
     unittest.main()
+

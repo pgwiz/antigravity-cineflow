@@ -75,76 +75,55 @@ For YouTube publishing, place your `client_secret.json` in the root directory.
 
 ## CLI Usage
 
-### A. Run an Episode / Short Film
+### A. Interactive Discussion & Text-First Production (Default)
+By default, the studio operates in **Text-First Blueprint Mode**: it generates complete Character Bibles, full screenplays, 3D spatial stage coordinates, persistent tracked object anchors, and exact Veo prompts without consuming media compute or quota!
+
 ```bash
-# 1. 100% Free AI Video Generation (Zero tokens, zero cost, no API keys required!)
-# Uses Pollinations AI visual generation + Hollywood 2.5D camera motion engine
-python main.py --mode shot --provider free --concept "Batman standing on a gothic gargoyle in the rain overlooking Gotham"
+# 1. Interactive Writers' Room with the AI Director:
+# Converse turn-by-turn to brainstorm characters, twists, and props; type 'generate' when done:
+python main.py --discuss
 
-# 2. Option 1: Google Flow Ultra via Chrome Automation (flow.google.com/u/5/)
-# First-time login setup (one-time interactive session):
-python main.py --login-flow
-# Thereafter, generate with your Ultra account:
-python main.py --mode short --duration 24.0 --provider chrome --concept "Batman inspecting aquatic crime scene"
+# 2. Text-First Production Blueprint (Generates full instructions & output/<project_id>_production_dossier.txt):
+python main.py --mode short --duration 24.0 --concept "Batman inspecting the aquatic marriage crime scene"
 
-# 3. Option 2: Google Flow Session Cookie Client (headless direct RPC)
-python main.py --mode short --provider flow_internal --concept "Batman pursuing cat across rooftops"
+# 3. Complete 8-Episode Season Production Book (Generates output/season_01_production_book.txt):
+python main.py --season --episodes 8
 
-# 4. Option 3: useapi.net Google Flow API v1 (Veo 3.1 Fast, requires USEAPI_TOKEN)
-python main.py --mode short --duration 24.0 --provider useapi --useapi-model veo-3.1-fast --concept "Cyberpunk detective inspecting neon crime scene"
-
-# 5. Option 4: Direct Google AI Studio Veo (requires paid quota)
-python main.py --mode shot --provider genai --concept "Batman descending Wayne Tower"
-```
-
-### B. Produce a Complete Season ("Batman: The Aquatic Mammalian Matrimony")
-Produce the full 8-episode ironical noir crime season (*"Fish Married the Giraffe... With a Mystery Cat"*):
-```bash
-# Generate all 8 episodes (each 60 seconds = 7-8 shots) and full season supercut:
-python main.py --season --episodes 8 --provider free
-
-# Or produce using your Google Flow Ultra account:
-python main.py --season --episodes 8 --provider chrome
-
-# Fast preview / CI dry-run verification:
-python main.py --season --episodes 8 --dry-run
-```
-
-### C. Visual Mockups & Named Asset Generation
-Generate top-down 2D spatial stage mockups and character/object asset cards:
-```bash
-# Generate named character cards (assets/characters/) and scene object cards (assets/objects/):
+# 4. Generate 2D spatial storyboard mockups and asset cards:
 python main.py --generate-assets
-
-# Generate 1280x720 storyboard cards with 2D stage maps, camera frustums, and prompt specs:
 python main.py --generate-mockups --season --episodes 8
 ```
 
-### D. Uploading Reference Images for Character Consistency
-Place your reference image in `assets/characters/` and run:
+### B. Media Rendering (`--media` Flag Required)
+When you are ready to render actual video clips, compose ambient audio scores, and stitch final master MP4s, simply pass the `--media` flag:
+
 ```bash
-python main.py --mode episode --duration 90.0 --concept "Batman confronting criminals in an alley" --character-image assets/characters/batman_suit.png
+# 1. Option 1: Google Flow Ultra via Chrome CDP Automation (flow.google.com/u/5/)
+python main.py --mode short --duration 24.0 --media --provider chrome --concept "Batman inspecting aquatic crime scene"
+
+# 2. Option 0: 100% Free AI Video Motion Engine (Zero tokens, zero cost!)
+python main.py --mode shot --media --provider free --concept "Batman on gargoyle in rain"
+
+# 3. Produce Complete 8-Episode Season Master Videos & Supercut:
+python main.py --season --episodes 8 --media --provider chrome
+
+# 4. Resume an existing project and render media:
+python main.py --job-id <PROJECT_ID> --media --provider chrome
 ```
 
-### E. Reviewing Storyboard Before Rendering
+### C. Reviewing & Editing Storyboards
 ```bash
-# Generate storyboard only for inspection/editing
+# Generate storyboard and pause for editing:
 python main.py --concept "Noir detective mystery" --review-storyboard
 
-# Once edited, resume rendering using the generated Job ID:
-python main.py --job-id <PROJECT_ID>
-```
-
-### F. Re-rendering a Specific Scene
-If Scene 3 needs adjustments:
-```bash
+# Re-render a single scene with last-frame continuity chaining:
 python main.py --job-id <PROJECT_ID> --re-render-scene 3
-python main.py --job-id <PROJECT_ID> --stitch-only
+python main.py --job-id <PROJECT_ID> --media --stitch-only
 ```
 
-### G. Publishing to YouTube
+### D. Publishing to YouTube
 ```bash
-python main.py --job-id <PROJECT_ID> --stitch-only --publish-youtube --privacy unlisted
+python main.py --job-id <PROJECT_ID> --media --stitch-only --publish-youtube --privacy unlisted
 ```
 
 ---
@@ -164,22 +143,25 @@ Interactive documentation is available at `http://localhost:8080/docs`.
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/health` | Check system status, FFmpeg, Chrome, and provider keys |
+| `POST` | `/api/v1/discuss` | Interactive writers' room discussion with the AI Director |
 | `POST` | `/api/v1/storyboard/create` | Generates explicit shot-by-shot storyboard JSON |
 | `GET` | `/api/v1/storyboard/{project_id}` | Retrieves existing storyboard |
+| `GET` | `/api/v1/dossier/{project_id}` | Retrieves complete text production blueprint and instructions |
 | `GET` | `/api/v1/screenplay/{project_id}` | Retrieves full Hollywood screenplay transcript |
 | `GET` | `/api/v1/characters/{project_id}` | Retrieves pre-production Character Bible |
 | `PUT` | `/api/v1/storyboard/{project_id}` | Updates scene prompts, camera angles, or transitions |
 | `POST` | `/api/v1/generate/{project_id}` | Dispatches Veo generation for all scenes (or single scene) |
 | `POST` | `/api/v1/render/{project_id}` | Compiles master MP4 with FFmpeg transitions and soundtrack |
 | `POST` | `/api/v1/publish/{project_id}` | Uploads rendered video to YouTube |
-| `POST` | `/api/v1/season/run` | Triggers autonomous multi-episode season production |
+| `POST` | `/api/v1/season/book` | Generates and returns Season 1 master production book (text-only) |
+| `POST` | `/api/v1/season/run` | Triggers multi-episode season production (`generate_media=true` for video) |
 | `GET` | `/api/v1/jobs/{project_id}` | Live job status, clip paths, and progress |
 
 ---
 
 ## Running Automated Tests
 
-Run the full unit and integration test suite (53 tests):
+Run the full unit and integration test suite (60 tests):
 ```bash
 python -m pytest tests/test_studio.py -v
 ```

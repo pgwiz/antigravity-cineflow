@@ -49,6 +49,17 @@ def parse_args():
     parser.add_argument("--environment-image", type=str, default=None, help="Path to environment reference image")
 
     # Workflow controls
+    parser.add_argument(
+        "--media",
+        action="store_true",
+        help="Render video clips, audio score, and master MP4. If omitted, generates complete text instructions, screenplays, and dossiers without consuming compute/quota.",
+    )
+    parser.add_argument(
+        "--discuss",
+        "--interactive",
+        action="store_true",
+        help="Start an interactive creative discussion with the AI Director to brainstorm and plan before generating instructions",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Run full pipeline with synthetic preview clips without consuming API credits")
     parser.add_argument("--show-screenplay", action="store_true", help="Print the full Hollywood screenplay transcript")
     parser.add_argument("--show-characters", action="store_true", help="Print the pre-production Character Bible")
@@ -150,11 +161,34 @@ def run_pipeline(args):
     # Print explicit breakdown
     print("\n" + storyboard.format_breakdown_markdown())
 
+    # Format and save complete text production dossier
+    dossier_text = storyboard.generate_production_dossier_text()
+    dossier_file = settings.output_dir / f"{storyboard.project_id}_production_dossier.txt"
+    dossier_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(dossier_file, "w", encoding="utf-8") as f:
+        f.write(dossier_text)
+
+    # If --media was not specified, stop here after delivering full text blueprint
+    if not getattr(args, "media", False) and not getattr(args, "dry_run", False) and getattr(args, "re_render_scene", None) is None and not getattr(args, "stitch_only", False) and not getattr(args, "review_storyboard", False):
+        print("\n" + "=" * 70)
+        print("📄 FULL PRODUCTION INSTRUCTIONS & BLUEPRINT GENERATED (TEXT MODE)")
+        print(f"Dossier File:    {dossier_file}")
+        print(f"Storyboard Data: {job_file}")
+        print("=" * 70)
+        print(dossier_text)
+        print("\n" + "=" * 70)
+        print("💡 Media generation skipped because --media was not specified.")
+        print(f"To render video clips, audio mix, and master MP4, run:")
+        print(f"  python main.py --job-id {storyboard.project_id} --media --provider {getattr(args, 'provider', 'chrome')}")
+        print("=" * 70)
+        return
+
     if args.review_storyboard:
         print("\n" + "=" * 70)
         print(f"📝 Storyboard saved to: {job_file}")
+        print(f"📄 Full Dossier saved to: {dossier_file}")
         print("You can inspect or edit prompts, camera angles, or transitions in the JSON file now.")
-        print(f"To resume this project, run: python main.py --job-id {storyboard.project_id}")
+        print(f"To resume this project, run: python main.py --job-id {storyboard.project_id} --media")
         print("=" * 70)
         return
 
@@ -232,6 +266,9 @@ def main():
     args = parse_args()
     if args.serve:
         run_server(args.port)
+    elif args.discuss:
+        director = DirectorAgent()
+        director.start_interactive_session(initial_concept=args.concept)
     elif args.login_flow:
         chrome_bot = ChromeFlowAutomation()
         chrome_bot.login_interactive()
@@ -261,6 +298,7 @@ def main():
             episodes_count=args.episodes,
             aspect_ratio=args.aspect,
             dry_run=args.dry_run,
+            generate_media=(args.media or args.dry_run),
         )
     else:
         run_pipeline(args)

@@ -1042,18 +1042,162 @@ class SeasonOrchestrator:
 
         return storyboard
 
+    def generate_season_production_book(
+        self,
+        episodes_count: int = 8,
+        aspect_ratio: str = "16:9",
+        output_file: Optional[Path] = None,
+    ) -> str:
+        """Generates the master production instruction textbook for the season."""
+        sep = "=" * 80
+        sub_sep = "-" * 80
+        
+        episodes_to_run = SEASON_EPISODES[:episodes_count]
+        total_shots = sum(len(ep["scenes"]) for ep in episodes_to_run)
+        total_seconds = episodes_count * 60.0
+
+        lines = [
+            sep,
+            "🎬 SEASON PRODUCTION BOOK & MASTER DIRECTORIAL INSTRUCTIONS",
+            "SERIES: BATMAN: THE AQUATIC MAMMALIAN MATRIMONY (SEASON 1)",
+            f"Scope: {episodes_count} Episodes (60s each) | Total Runtime: {total_seconds:.0f}s | Total Shots: {total_shots}",
+            "Genre: Ironical Crime Noir / Hardboiled Absurdist Surrealism",
+            sep,
+            "\n[SECTION 1: SEASON NARRATIVE ARCHITECTURE & LOGLINE]",
+            sub_sep,
+            "In rain-drenched Gotham, Batman investigates the utterly absurd, ironical",
+            "mystery of a Japanese koi fish married to a savannah giraffe, framed by a mysterious tuxedo cat.",
+            "\nSeason Arc Progression:",
+            "  * Episode 1: The Wet Savannah (The Altar in the Flooded Cathedral)",
+            "  * Episode 2: Paws and Scales (The Feline Heist of the Maritime Key)",
+            "  * Episode 3: The Acrobatic Detective (Gargoyle Interrogation & Rooftop Pursuit)",
+            "  * Episode 4: Submerged Vows (Forensic Analysis of the Saline Pod)",
+            "  * Episode 5: The Cat Walk (Shadows in the Pier Warehouse)",
+            "  * Episode 6: Feline Interrogation (The Claws Behind the Dowry)",
+            "  * Episode 7: The Trial by Saline (The Preposterous Gotham Courtroom)",
+            "  * Episode 8: The Dawn of the Savannah Sea (The Ironical Truce & Gotham Sunrise)",
+            "\n[SECTION 2: COMPLETE DRAMATIS PERSONAE / CHARACTER BIBLE]",
+            sub_sep,
+        ]
+
+        for char_name, c in SEASON_CHARACTERS.items():
+            lines.extend([
+                f"\nCHARACTER: {c['full_name']} [{c['role']}]",
+                f"  * Appearance:         {c['appearance']}",
+                f"  * Wardrobe / DNA:     {c['wardrobe_dna']}",
+                f"  * Vocal Cadence:      {c['vocal_cadence']}",
+                f"  * Want vs. Need:      {c['want_need']}",
+                f"  * IMMUTABLE AI ANCHOR: \"{c['prompt_anchor']}\"",
+            ])
+
+        lines.extend([
+            f"\n[SECTION 3: SEASON-WIDE TRACKED OBJECTS & 3D CONTINUITY MATRIX]",
+            sub_sep,
+            "Universal Spatial Coordinate Grid:",
+            "  - X-Axis: -1.0 (Stage Left) to +1.0 (Stage Right), 0.0 (Center)",
+            "  - Y-Axis: -1.0 (Downstage / Foreground) to +1.0 (Upstage / Background)",
+            "  - Z-Axis:  0.0 (Floor Level) to +3.0 (Elevated Perch / Ledge in meters)",
+            "  - 180° Action Axis: All cameras locked to South-East quadrant; never flip across the nave axis.",
+            "\nPersistent Interactive Props across all 8 Episodes:",
+            "  1. Gold Wedding Ring: Submerged inside clear saline goblet at Center Altar (X: 0.0, Y: 0.0, Z: 0.8m).",
+            "  2. Lady Guppy's Pod: Brass-reinforced crystalline glass water orb (X: -0.4, Y: 0.2, Z: 0.5m) with bubbling saline.",
+            "  3. Sir Longneck's Bowtie: Silk white satin bowtie and midnight-black tailored velvet tuxedo coat (X: 0.5, Y: 0.2, Z: 1.8m).",
+            "  4. Mystery Cat's Brass Key: Ancient maritime skeleton key clutched in jaws or paw (X: -0.6, Y: 0.3, Z: 0.9m).",
+            "  5. Sea Kelp Altar: Ancient carved stone communion altar wrapped in Atlantic kelp and acacia thorns (X: 0.0, Y: 0.0, Z: 0.8m).",
+            "\n[SECTION 4: EPISODE-BY-EPISODE PRODUCTION BREAKDOWNS & EXACT VEO PROMPTS]",
+            sub_sep,
+        ])
+
+        for ep_data in episodes_to_run:
+            ep_num = ep_data["episode_number"]
+            sb = self.build_episode_storyboard(ep_data, aspect_ratio=aspect_ratio)
+            lines.extend([
+                f"\n{'='*70}",
+                f"EPISODE {ep_num:02d}: {ep_data['title'].upper()}",
+                f"Target Duration: 60.0s | Shots: {len(sb.scenes)} | Aspect Ratio: {aspect_ratio}",
+                f"{'='*70}",
+            ])
+
+            # Screenplay Transcript
+            if sb.screenplay:
+                lines.append("\n--- SCREENPLAY TRANSCRIPT ---")
+                lines.append(sb.screenplay.format_screenplay_transcript().strip())
+
+            # Shot Prompts
+            lines.append("\n--- SHOT-BY-SHOT CAMERA INSTRUCTIONS & EXACT PROMPTS ---")
+            for s in sb.scenes:
+                lines.extend([
+                    f"\n  [SHOT {s.scene_number:02d}] {s.shot_type} | {s.camera_movement} | {s.lighting} ({s.duration_seconds:.1f}s)",
+                    f"  Slugline:            {s.slugline_ref}",
+                    f"  Characters in Shot:  {', '.join(s.characters_in_shot)}",
+                    f"  3D Spatial Blocking: {s.get_spatial_summary()}",
+                    f"  Tracked Objects:     {s.get_object_summary()}",
+                    f"  Camera Axis (180°):  {s.get_camera_axis_summary()}",
+                    f"  Action:              {s.action_description}",
+                    f"  Audio / SFX Cue:     {s.sound_effects_cue}",
+                    f"  EXACT VEO PROMPT:\n  {s.visual_prompt}",
+                    f"  NEGATIVE PROMPT:     {s.negative_prompt}",
+                ])
+
+        lines.extend([
+            f"\n[SECTION 5: INSTRUCTIONS FOR PRODUCTION & RENDERING]",
+            sub_sep,
+            "1. TEXT PRODUCTION ONLY (Current Mode):",
+            "   All screenplays, character bibles, stage coordinates, and Veo prompts have been compiled.",
+            "   No compute, quota, or media files were generated.",
+            "\n2. MANUAL WEB EXECUTION:",
+            "   Copy each 'EXACT VEO PROMPT' into Google Flow Ultra (flow.google.com/u/5/) or Veo Studio.",
+            "   Select 16:9, Veo 3.1 Fast, and paste character anchors.",
+            "\n3. AUTOMATED MEDIA RENDERING:",
+            "   To render actual video clips, audio tracks, and the complete master season supercut, run:",
+            f"     python main.py --season --episodes {episodes_count} --media --provider chrome",
+            "   Or with free offline motion engine:",
+            f"     python main.py --season --episodes {episodes_count} --media --provider free",
+            sep,
+        ])
+
+        book_text = "\n".join(lines)
+
+        target_file = output_file or (settings.output_dir / "season_01_production_book.txt")
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(target_file, "w", encoding="utf-8") as f:
+            f.write(book_text)
+
+        return book_text
+
     def run_season(
         self,
         episodes_count: int = 8,
         aspect_ratio: str = "16:9",
         dry_run: bool = False,
+        generate_media: bool = False,
     ) -> Dict[str, Any]:
-        """Executes generation of all requested episodes and assembles the season supercut."""
+        """Runs season production. If generate_media is False, compiles text production book without consuming compute."""
+        if not generate_media:
+            print("\n=======================================================")
+            print(f" 🎬 GENERATING SEASON 1 TEXT PRODUCTION BOOK (NO MEDIA)")
+            print(f" Episodes: {episodes_count} | Mode: 60s/Episode | Aspect: {aspect_ratio}")
+            print("=======================================================\n")
+            book_text = self.generate_season_production_book(episodes_count=episodes_count, aspect_ratio=aspect_ratio)
+            book_path = settings.output_dir / "season_01_production_book.txt"
+            print(f"✅ Season Production Book compiled successfully!")
+            print(f"📄 Saved to: {book_path}")
+            print("\n💡 Media generation was skipped because --media was not specified.")
+            print(f"To render video clips, audio mix, and the season supercut, run:")
+            print(f"  python main.py --season --episodes {episodes_count} --media --provider {self.provider}")
+            return {
+                "title": "Batman: The Aquatic Mammalian Matrimony",
+                "mode": "text_instructions_only",
+                "production_book_path": str(book_path),
+                "episodes_count": episodes_count,
+            }
+
         print("\n=======================================================")
         print(f" 🎬 LAUNCHING SEASON 1: BATMAN & THE AQUATIC CONSPIRACY")
         print(f" Episodes: {episodes_count} | Mode: 60s/Episode | Provider: {self.provider.upper()}")
         print(f" Dry-Run: {dry_run} | Aspect Ratio: {aspect_ratio}")
         print("=======================================================\n")
+
 
         rendered_episodes: List[Path] = []
         season_manifest = {

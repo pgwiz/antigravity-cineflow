@@ -47,11 +47,17 @@ class PublishRequest(BaseModel):
     privacy_status: str = Field(default="private", description="'private', 'unlisted', or 'public'")
     thumbnail_path: Optional[str] = Field(default=None, description="Optional custom thumbnail image path")
 
+class DiscussRequest(BaseModel):
+    message: str = Field(..., description="User message or creative thought for the AI Director")
+    history: Optional[List[Dict[str, str]]] = Field(default=None, description="Previous conversation turns")
+    project_context: Optional[Dict[str, Any]] = Field(default=None, description="Current concept or character state")
+
 class SeasonRunRequest(BaseModel):
     episodes: int = Field(default=8, ge=1, le=8, description="Number of episodes to produce (1-8)")
     aspect_ratio: str = Field(default="16:9", description="'16:9' or '9:16'")
     provider: Optional[str] = Field(default=None, description="Generation provider: 'free', 'chrome', 'flow_internal', 'useapi'")
     dry_run: bool = Field(default=False, description="Whether to run synthetic preview clips")
+    generate_media: bool = Field(default=False, description="Whether to render video and audio media (default: False for text-only)")
 
 @app.get("/api/v1/health")
 def health_check():
@@ -162,19 +168,22 @@ def get_storyboard_root(project_id: str):
 def get_screenplay_root(project_id: str):
     return get_screenplay_endpoint(project_id)
 
-@app.get("/api/v1/storyboard/{project_id}")
-def get_storyboard_endpoint(project_id: str):
-    """Retrieves an existing storyboard by project ID."""
+def get_storyboard_or_404(project_id: str) -> Storyboard:
+    """Helper to fetch Storyboard object from memory or disk, or raise 404."""
     if project_id in active_storyboards:
-        return active_storyboards[project_id].model_dump()
-    
+        return active_storyboards[project_id]
     job_file = settings.jobs_dir / f"{project_id}.json"
     if job_file.exists():
         sb = Storyboard.load(job_file)
         active_storyboards[project_id] = sb
-        return sb.model_dump()
-    
+        return sb
     raise HTTPException(status_code=404, detail="Project ID not found")
+
+@app.get("/api/v1/storyboard/{project_id}")
+def get_storyboard_endpoint(project_id: str):
+    """Retrieves an existing storyboard by project ID."""
+    sb = get_storyboard_or_404(project_id)
+    return sb.model_dump()
 
 @app.put("/api/v1/storyboard/{project_id}")
 def update_storyboard_endpoint(project_id: str, updated_storyboard: Storyboard):
@@ -319,16 +328,51 @@ def get_job_status(project_id: str):
     """Returns complete real-time status of all scene clips and rendering output."""
     return get_storyboard_endpoint(project_id)
 
+@app.post("/api/v1/discuss")
+def discuss_endpoint(req: DiscussRequest):
+    """Interactive writers' room discussion with the AI Director."""
+    director = DirectorAgent()
+    response = director.discuss(
+        user_message=req.message,
+        history=req.history,
+        project_context=req.project_context,
+    )
+    return response
+
+@app.get("/api/v1/dossier/{project_id}")
+def get_dossier_endpoint(project_id: str):
+    """Retrieves the full production blueprint and instruction manual text for a project."""
+    sb = get_storyboard_or_404(project_id)
+    return {
+        "project_id": project_id,
+        "title": sb.title,
+        "dossier": sb.generate_production_dossier_text(),
+    }
+
+@app.post("/api/v1/season/book")
+def generate_season_book_endpoint(episodes: int = Query(default=8, ge=1, le=8), aspect_ratio: str = Query(default="16:9")):
+    """Generates and returns the complete Season 1 production instruction textbook (no media)."""
+    orchestrator = SeasonOrchestrator()
+    book = orchestrator.generate_season_production_book(episodes_count=episodes, aspect_ratio=aspect_ratio)
+    return {
+        "season": "Batman: The Aquatic Mammalian Matrimony (Season 1)",
+        "episodes_count": episodes,
+        "aspect_ratio": aspect_ratio,
+        "production_book": book,
+    }
+
 @app.post("/api/v1/season/run")
 def run_season_endpoint(req: SeasonRunRequest, background_tasks: BackgroundTasks):
-    """Triggers autonomous multi-episode season production."""
+    """Triggers multi-episode season production. Defaults to text-only mode unless generate_media=True."""
     orchestrator = SeasonOrchestrator(provider=req.provider or settings.video_provider)
     manifest = orchestrator.run_season(
         episodes_count=req.episodes,
         aspect_ratio=req.aspect_ratio,
         dry_run=req.dry_run,
+        generate_media=req.generate_media,
     )
     return {
         "status": "completed",
         "manifest": manifest,
     }
+

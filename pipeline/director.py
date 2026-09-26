@@ -521,3 +521,185 @@ class DirectorAgent:
             characters=characters,
             scenes=scenes,
         )
+
+    def discuss(
+        self,
+        user_message: str,
+        history: Optional[List[Dict[str, str]]] = None,
+        project_context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Interactive brainstorming with the Director Agent to shape concept, characters, and scene structure."""
+        history = history or []
+        project_context = project_context or {}
+
+        # If user explicitly asks to generate/finish
+        msg_lower = user_message.strip().lower()
+        if msg_lower in ["generate", "produce", "done", "finish", "build", "ready"]:
+            return {
+                "reply": "Excellent! The narrative architecture, character bibles, and scene geometry are aligned. Initiating compilation of the full production instruction blueprint now.",
+                "action": "generate",
+                "ready_for_instructions": True,
+            }
+
+        # Try Gemini API if client available
+        if self.client:
+            try:
+                system_prompt = (
+                    "You are an acclaimed Hollywood executive producer, visionary auteur director, and master cinematographer. "
+                    "You are in a live writers' room discussion with a creator brainstorming an AI video project. "
+                    "You specialize in ironical, surreal, and hardboiled cinematic storytelling (e.g. Batman noir mysteries, "
+                    "cross-species matrimonies, absurdist crimes with mystery cats, etc.). "
+                    "Engage collaboratively: offer vivid visual ideas, lens choices (anamorphic 35mm), lighting styles (chiaroscuro), "
+                    "suggest character wardrobe DNA and psychological motives, propose persistent tracked objects to anchor continuity across cuts, "
+                    "and ask 1-2 focused questions to refine the project. "
+                    "Return ONLY a JSON object with this schema:\n"
+                    "{\n"
+                    "  'reply': 'Your conversational, insightful director response (2-3 punchy paragraphs)',\n"
+                    "  'suggested_title': 'Punchy movie or episode title (or null)',\n"
+                    "  'suggested_characters': ['List of character names/archetypes proposed'],\n"
+                    "  'suggested_objects': ['List of physical objects to track for visual continuity'],\n"
+                    "  'ready_for_instructions': true\n"
+                    "}"
+                )
+
+                formatted_history = []
+                for turn in history[-6:]:
+                    role = "user" if turn.get("role") == "user" else "model"
+                    formatted_history.append(f"{role.upper()}: {turn.get('content', '')}")
+                
+                context_str = f"Current Project Context: {json.dumps(project_context)}\n" if project_context else ""
+                full_prompt = f"{context_str}Conversation History:\n" + "\n".join(formatted_history) + f"\nUSER: {user_message}"
+
+                response = self.client.models.generate_content(
+                    model=settings.director_model,
+                    contents=[full_prompt],
+                    config={"response_mime_type": "application/json", "system_instruction": system_prompt},
+                )
+                data = json.loads(response.text)
+                return data
+            except Exception as e:
+                print(f"[DirectorAgent] LLM discussion notice ({e}), engaging smart creative fallback...")
+
+        # Algorithmic creative fallback
+        reply_lines = []
+        suggested_title = project_context.get("title", "The Gotham Matrimony Mystery")
+        suggested_chars = project_context.get("characters", ["Batman", "Lady Guppy", "Sir Longneck", "The Mystery Cat", "Alfred"])
+        suggested_objs = project_context.get("objects", ["Gold Wedding Ring in Saline Goblet", "Brass Water Sphere", "Velvet Tuxedo Bowtie", "Brass Maritime Key", "Kelp Altar"])
+
+        if any(w in msg_lower for w in ["cat", "feline", "tuxedo"]):
+            reply_lines.append(
+                "I love leaning heavily into The Mystery Cat. Let's make him an enigmatic feline phantom in a miniature tilted charcoal fedora, "
+                "clutching an antique brass maritime key in his teeth. He watches from the stone gargoyles in the pouring rain, "
+                "leaving subtle pawprints across wet zinc surfaces that contradict the laws of physics."
+            )
+        elif any(w in msg_lower for w in ["fish", "koi", "bride", "water"]):
+            reply_lines.append(
+                "Lady Guppy is a visual masterpiece: a fiery scarlet and pearl-white Kohaku koi fish swimming serenely inside an airtight "
+                "brass-riveted crystalline water sphere. We should illuminate her pod with internal cyan bioluminescence to create a stunning "
+                "contrast against the crushing Gotham chiaroscuro shadows."
+            )
+        elif any(w in msg_lower for w in ["giraffe", "longneck", "groom", "tuxedo"]):
+            reply_lines.append(
+                "Sir Longneck's silhouette will look magnificent on a 35mm anamorphic wide lens—a towering 16-foot African giraffe in a "
+                "custom-tailored Victorian midnight-black tailcoat and silk bowtie, ruminating in the rain while Batman inspects the pavement below. "
+                "The scale disparity between him, Batman, and the fish creates instant cinematic irony."
+            )
+        else:
+            reply_lines.append(
+                f"That's a tremendous creative angle: '{user_message}'. "
+                "To ensure rock-solid visual continuity across every camera angle, we should anchor each character to specific stage quadrants "
+                "and enforce a strict 180-degree line of action. We will also track the key forensic objects—like the submerged gold wedding ring "
+                "and the antique brass key—so the AI video generator never teleports them across cuts."
+            )
+
+        reply_lines.append(
+            "Shall we proceed with this configuration, or would you like to tweak the character wardrobe DNA, "
+            "dialogue tone, or lighting palette? When you're ready, simply type 'generate' or 'done' to output the full production blueprint!"
+        )
+
+        return {
+            "reply": "\n\n".join(reply_lines),
+            "suggested_title": suggested_title,
+            "suggested_characters": suggested_chars,
+            "suggested_objects": suggested_objs,
+            "ready_for_instructions": True,
+        }
+
+    def start_interactive_session(self, initial_concept: Optional[str] = None) -> Storyboard:
+        """Runs an interactive writers' room session with the user in the terminal."""
+        sep = "=" * 70
+        print("\n" + sep)
+        print("🎬 AI DIRECTOR'S WRITERS' ROOM - INTERACTIVE CREATIVE SESSION")
+        print("Discuss your story concept, characters, surreal twists, or objects.")
+        print("When satisfied, type 'generate' or 'done' to produce full text instructions.")
+        print("Commands: 'generate' / 'done' (compile), 'status' (view outline), 'exit' (quit)")
+        print(sep + "\n")
+
+        history: List[Dict[str, str]] = []
+        concept_accum = initial_concept or "Batman investigating an ironical noir crime where a koi fish married a giraffe, framed by a mystery cat"
+        
+        # Initial greeting from Director
+        initial_pitch = self.discuss(f"Let's develop this story concept: {concept_accum}", history)
+        print(f"🎬 DIRECTOR:\n{initial_pitch.get('reply', '')}\n")
+        history.append({"role": "model", "content": initial_pitch.get("reply", "")})
+
+        while True:
+            try:
+                user_input = input("👤 YOU: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\n[DirectorAgent] Session ended.")
+                break
+
+            if not user_input:
+                continue
+
+            if user_input.lower() in ["exit", "quit", "q"]:
+                print("[DirectorAgent] Exiting writers' room.")
+                break
+
+            if user_input.lower() in ["status", "outline"]:
+                print(f"\n📋 CURRENT STORY CONCEPT:\n{concept_accum}\n")
+                continue
+
+            # Process user input
+            history.append({"role": "user", "content": user_input})
+            
+            # Check for generate command
+            if user_input.lower() in ["generate", "done", "finish", "produce", "build", "ready"]:
+                print("\n🎬 DIRECTOR: Outstanding! Compiling complete pre-production Character Bible, Screenplay Transcript, 3D Spatial Grid, and Shot-by-Shot Prompts...\n")
+                break
+
+            concept_accum += f". {user_input}"
+            turn_response = self.discuss(user_input, history)
+            reply = turn_response.get("reply", "")
+            print(f"\n🎬 DIRECTOR:\n{reply}\n")
+            history.append({"role": "model", "content": reply})
+
+        # Generate full Storyboard from accumulated discussion
+        storyboard = self.create_storyboard(
+            concept=concept_accum,
+            total_duration=60.0,
+            clip_duration=settings.default_clip_duration,
+            aspect_ratio="16:9",
+            genre="Ironical Crime Noir / Hardboiled Absurdist Surrealism",
+        )
+
+        job_file = settings.jobs_dir / f"{storyboard.project_id}.json"
+        storyboard.save(job_file)
+
+        # Output the complete text dossier
+        dossier_text = storyboard.generate_production_dossier_text()
+        dossier_path = settings.output_dir / f"{storyboard.project_id}_production_dossier.txt"
+        dossier_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(dossier_path, "w", encoding="utf-8") as f:
+            f.write(dossier_text)
+
+        print(dossier_text)
+        print(f"\n[OK] Full Production Instruction Dossier saved to: {dossier_path}")
+        print(f"[OK] Storyboard Data saved to: {job_file}")
+        print(f"\n💡 Media generation skipped (no --media flag specified).")
+        print(f"To render video clips, audio mix, and master MP4, run:")
+        print(f"  python main.py --job-id {storyboard.project_id} --media --provider chrome")
+
+        return storyboard
+

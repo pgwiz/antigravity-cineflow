@@ -2,6 +2,35 @@
 
 All notable changes to the Video Workflow Studio are documented in this file.
 
+## [1.6.0] - 2026-09-26
+
+### Added
+- **Interactive AI Director Writers' Room (`pipeline/director.py`)**:
+  - Implemented `DirectorAgent.discuss()` for bidirectional natural language brainstorming on story concepts, surreal noir themes (the fish and giraffe matrimony, the mystery cat), character wardrobe DNA, and persistent props.
+  - Implemented `DirectorAgent.start_interactive_session()` CLI loop (`python main.py --discuss`) for interactive pre-production discussions.
+  - Added FastAPI endpoint `POST /api/v1/discuss`.
+- **Text-First Default Production Blueprint (`pipeline/storyboard.py`, `main.py`)**:
+  - Changed pipeline default to **Text-First / No-Media Mode**: generates complete, comprehensive textual instructions without consuming media compute/quota unless `--media` is explicitly passed.
+  - Added `Storyboard.generate_production_dossier_text()` compiling:
+    1. Executive Production Brief & Scene Math
+    2. Pre-Production Character Bible with immutable prompt anchors
+    3. 3D Spatial Stage & Persistent Tracked Objects Matrix
+    4. Full Hollywood Screenplay Transcript (sluglines, present-tense actions, dialogue, parentheticals, sound cues)
+    5. Shot-by-Shot Camera Instructions & Exact Structured Veo Prompts
+    6. Human & Automated Execution Guide
+  - Automatically exports dossiers to `output/{project_id}_production_dossier.txt`.
+  - Added FastAPI endpoint `GET /api/v1/dossier/{project_id}`.
+- **Season 1 Master Production Book (`pipeline/season.py`)**:
+  - Added `SeasonOrchestrator.generate_season_production_book()` compiling all 8 episodes (60 shots), full screenplays, character bibles, and tracked props into `output/season_01_production_book.txt`.
+  - Added FastAPI endpoint `POST /api/v1/season/book`.
+  - Updated `SeasonOrchestrator.run_season()` with `generate_media` flag (defaults to text-only mode).
+- **CLI Media Control Flag (`main.py`)**:
+  - Added `--media` argument: controls whether video clips, audio mix, and master MP4s are rendered.
+  - Added `--discuss` / `--interactive` argument to launch the interactive creative discussion session.
+- **Expanded Test Suite (`tests/test_studio.py`)**:
+  - Added 7 new unit and integration tests in `TestTextFirstAndDiscussionWorkflow`.
+  - Total test count expanded from 53 to **60 tests passing (100%)**.
+
 ## [1.5.0] - 2026-09-25
 
 ### Added

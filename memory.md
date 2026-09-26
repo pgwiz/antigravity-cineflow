@@ -55,8 +55,18 @@
   - Named scene objects in `assets/objects/`.
   - 1280x720 cinema production cards in `mockups/epXX/` containing top-down 2D stage maps, camera FOV frustum cones, visual composition preview, and continuity rules.
 
-### 5. Verification & Testing Suite
-- **Pytest Suite (`tests/test_studio.py`)**: 53 comprehensive unit and integration tests passing (100% pass rate) covering data models, cinematography, useapi client, Chrome automation, Flow error recovery, spatial scene blocking, visual mockup generation, FFmpeg stitching, last-frame chaining, FastAPI routes, and Season orchestrator math.
+### 5. Interactive Discussion Engine & Text-First Architecture
+- **Interactive Discussion (`DirectorAgent.discuss`)**:
+  - Natural language writers' room session (`python main.py --discuss`) allowing creators to brainstorm concepts, surreal twists, character motives, and tracked props before locking in production.
+  - Exposes `POST /api/v1/discuss` for API/frontend clients.
+- **Default Text-First Mode (Zero Media Compute)**:
+  - By default, running projects or seasons generates comprehensive text blueprints and instruction manuals without consuming media compute or quota.
+  - Compiles full Pre-Production Character Bibles (hallmarks, wardrobe DNA, eye-line anchors, prompt anchors), 3D Spatial Stage & Object Matrix, full Screenplays, and exact Veo visual prompts.
+  - Automatically exports dossiers to `output/{project_id}_production_dossier.txt` and `output/season_01_production_book.txt`.
+  - Media generation is strictly gated behind the `--media` flag (`python main.py --media ...` or `python main.py --season --media ...`).
+
+### 6. Verification & Testing Suite
+- **Pytest Suite (`tests/test_studio.py`)**: 60 comprehensive unit and integration tests passing (100% pass rate) covering data models, cinematography, useapi client, Chrome automation, Flow error recovery, spatial scene blocking, visual mockup generation, discussion engine, text-first blueprints, FFmpeg stitching, last-frame chaining, FastAPI routes, and Season orchestrator math.
 - **Dry-run Validations**: Verified `--mode shot` (8s), `--mode short` (32s), `--mode episode` (48s), and `--season --episodes 8` (480s / 8 minutes season).
 - **Probed MP4 Masters**: Inspected via `ffprobe`, confirming valid stream headers, h264 video, AAC audio, and exact timeline duration matching storyboard specifications.
 
@@ -76,5 +86,6 @@
 - `pipeline/editor.py`: FFmpeg stitcher, `xfade` transition builder, audio multiplexer, multi-episode concatenator.
 - `pipeline/youtube_publisher.py`: YouTube Data API v3 OAuth2 uploader and SEO metadata.
 - `server.py`: FastAPI REST API bridge with mini-endpoints (`/api/v1/season/run`, `/api/v1/health`, etc.).
-- `main.py`: Master CLI runner (`--season`, `--generate-assets`, `--generate-mockups`, `--login-flow`, `--provider`, etc.).
-- `tests/test_studio.py`: Automated pytest / unittest regression and integration test suite (53 tests).
+- `main.py`: Master CLI runner (`--season`, `--generate-assets`, `--generate-mockups`, `--login-flow`, `--provider`, `--discuss`, `--media`).
+- `tests/test_studio.py`: Automated pytest / unittest regression and integration test suite (60 tests).
+

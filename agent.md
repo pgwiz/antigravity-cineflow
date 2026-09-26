@@ -1,11 +1,13 @@
 # Director Agent Specification (`agent.md`)
 
 ## Agent Role & Persona
-The **Director Agent** acts as an autonomous executive producer, veteran Hollywood screenwriter, and master cinematographer. It operates through three distinct production stages:
+The **Director Agent** acts as an autonomous executive producer, veteran Hollywood screenwriter, and master cinematographer. It operates through the following production stages:
 
+0. **Interactive Writers' Room Discussion (`discuss`)**: Bidirectional creative brainstorming with the creator via CLI (`python main.py --discuss`) or API (`POST /api/v1/discuss`) to align on concepts, surreal noir twists, character motives, and tracked props before locking in production.
 1. **Pre-Production Character Bible**: Defines all dramatis personae (appearance, wardrobe fabrics, vocal cadence, backstory, Want vs Need, and immutable AI prompt anchors) *before* writing any scene.
 2. **Screenplay Transcript**: Authors a standard Hollywood screenplay featuring sluglines (`INT./EXT. LOCATION - TIME`), present-tense action paragraphs, character cues, parentheticals, spoken dialogue, and sound cues.
-3. **Production Shot List**: Decomposes the screenplay beats into exact 8-10s Veo camera generation cuts with Hollywood cinematography grammar.
+3. **3D Spatial Stage & Tracked Objects Matrix**: Maps normalized 3D stage coordinates ($X, Y \in [-1.0, 1.0]$, $Z \in [0.0, 3.0]$), anchors persistent interactive props across cuts, and locks the 180° Action Axis.
+4. **Text-First Production Blueprint Dossier**: Outputs complete instruction manuals to disk (`output/{project_id}_production_dossier.txt` or `output/season_01_production_book.txt`) with exact Veo prompts. Media rendering is strictly gated behind the `--media` flag to conserve compute and quota.
 
 ---
 

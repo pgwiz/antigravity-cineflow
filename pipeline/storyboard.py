@@ -302,3 +302,132 @@ class Storyboard(BaseModel):
             lines.append("")
 
         return "\n".join(lines)
+
+    def generate_production_dossier_text(self) -> str:
+        """Compiles a complete, publication-grade text production blueprint and instruction manual."""
+        sep = "=" * 80
+        sub_sep = "-" * 80
+        lines = [
+            sep,
+            f"🎬 PRODUCTION BLUEPRINT & INSTRUCTION DOSSIER: {self.title.upper()}",
+            f"Project ID: {self.project_id} | Created: {self.created_at}",
+            sep,
+            "\n[SECTION 1: EXECUTIVE PRODUCTION BRIEF & SCENE MATH]",
+            sub_sep,
+            f"Title:               {self.title}",
+            f"Logline:             {self.logline}",
+            f"Genre / Style:       {self.genre}",
+            f"Target Duration:     {self.total_target_duration:.1f} seconds",
+            f"Aspect Ratio:        {self.aspect_ratio}",
+            f"Total Camera Shots:  {len(self.scenes)} shots",
+            f"Average Shot Length: {self.total_target_duration / max(1, len(self.scenes)):.1f} seconds/shot",
+        ]
+
+        # Section 2: Character Bible
+        lines.extend([
+            f"\n[SECTION 2: PRE-PRODUCTION CHARACTER BIBLE]",
+            sub_sep,
+        ])
+        if self.screenplay and self.screenplay.characters:
+            for idx, c in enumerate(self.screenplay.characters, start=1):
+                lines.extend([
+                    f"\nCHARACTER #{idx:02d}: {c.name} ({c.role.upper()})",
+                    f"  * Physical Hallmarks:   {c.appearance}",
+                    f"  * Wardrobe / Visual DNA:{c.wardrobe_visual_dna}",
+                    f"  * Vocal Cadence & Tone: {c.voice_and_cadence}",
+                    f"  * Backstory & Trauma:   {c.backstory}",
+                    f"  * Want vs. Need:        {c.internal_conflict}",
+                    f"  * IMMUTABLE VEO ANCHOR: \"{c.prompt_anchor}\"",
+                ])
+        else:
+            lines.append("  (No discrete character profiles loaded; standard ensemble cast)")
+
+        # Section 3: 3D Spatial Grid & Tracked Scene Objects
+        lines.extend([
+            f"\n[SECTION 3: 3D SPATIAL STAGE & TRACKED OBJECTS MATRIX]",
+            sub_sep,
+            "Spatial Coordinate Reference System:",
+            "  - X-Axis: -1.0 (Stage Left) to +1.0 (Stage Right), 0.0 (Center Stage)",
+            "  - Y-Axis: -1.0 (Downstage / Foreground) to +1.0 (Upstage / Background)",
+            "  - Z-Axis:  0.0 (Floor Level) to +3.0 (Elevated Perch / Ledge in meters)",
+            "  - 180° Action Axis: Camera must remain on downstage side of vector to avoid disorientation.",
+            "\nTracked Scene Objects Across Cuts:",
+        ])
+        all_objects = {}
+        for s in self.scenes:
+            for ob in s.tracked_objects:
+                if ob.object_id not in all_objects:
+                    all_objects[ob.object_id] = ob
+
+        if all_objects:
+            for ob in all_objects.values():
+                lines.extend([
+                    f"  * OBJECT: {ob.name} (ID: {ob.object_id})",
+                    f"    - Stage Zone:        {ob.position.named_zone} (X: {ob.position.x:+.1f}, Y: {ob.position.y:+.1f}, Z: {ob.position.z:.1f}m)",
+                    f"    - Container/Surface: {ob.container_or_surface}",
+                    f"    - Visual State:      {ob.visual_state}",
+                    f"    - Continuity Lock:   {ob.continuity_lock}",
+                ])
+        else:
+            lines.append("  (Standard set dressing; no persistent tracked interactive props)")
+
+        # Section 4: Hollywood Screenplay Transcript
+        lines.extend([
+            f"\n[SECTION 4: FULL HOLLYWOOD SCREENPLAY TRANSCRIPT]",
+            sub_sep,
+        ])
+        if self.screenplay:
+            lines.append(self.screenplay.format_screenplay_transcript().strip())
+        else:
+            lines.append("  (Screenplay transcript not attached)")
+
+        # Section 5: Shot-by-Shot Production Breakdown & Exact Prompts
+        lines.extend([
+            f"\n[SECTION 5: SHOT-BY-SHOT CAMERA INSTRUCTIONS & VEO PROMPTS]",
+            sub_sep,
+        ])
+        for s in self.scenes:
+            lines.extend([
+                f"\n--- SHOT {s.scene_number:02d} [{s.timecode_start} - {s.timecode_end} | {s.duration_seconds:.1f}s] ---",
+                f"Title:               {s.title}",
+                f"Slugline Reference:  {s.slugline_ref}",
+                f"Framing & Optics:    {s.shot_type} on {s.lens}",
+                f"Camera Motion:       {s.camera_movement}",
+                f"Lighting & Film:     {s.lighting} | {s.color_science}",
+                f"Stage Environment:   {s.stage_environment}",
+            ])
+            if s.character_blockings:
+                lines.append(f"Stage Characters:    {s.get_spatial_summary()}")
+            if s.tracked_objects:
+                lines.append(f"Tracked Objects:     {s.get_object_summary()}")
+            if s.camera_blocking:
+                lines.append(f"Camera Axis:         {s.get_camera_axis_summary()}")
+            if s.spatial_transition:
+                lines.append(f"Transition Carryover:{s.spatial_transition.spatial_carryover_notes}")
+            lines.extend([
+                f"Action Description:  {s.action_description}",
+                f"Audio / SFX Cue:     {s.sound_effects_cue or 'None'}",
+                f"Dialogue Line:       \"{s.narration_text or 'None'}\"",
+                f"EXACT VEO PROMPT:\n{s.visual_prompt}",
+                f"NEGATIVE PROMPT:     {s.negative_prompt}",
+            ])
+
+        # Section 6: Execution Instructions
+        lines.extend([
+            f"\n[SECTION 6: HUMAN & AI EXECUTION INSTRUCTIONS]",
+            sub_sep,
+            "Option A (Manual Web Interface - Google Flow Ultra / Veo):",
+            f"  1. Log into your Google Flow account (e.g. flow.google.com/u/5/).",
+            f"  2. For each shot above, copy the 'EXACT VEO PROMPT' into the prompt box.",
+            f"  3. Set aspect ratio to {self.aspect_ratio} and select Veo 3.1 Fast / Quality.",
+            f"  4. Ensure character visual DNA and object locations match the specifications.",
+            "\nOption B (Automated CLI Media Generation):",
+            f"  Run the following command to render actual video clips and master MP4:",
+            f"    python main.py --job-id {self.project_id} --media --provider chrome",
+            f"  Or with free offline motion engine:",
+            f"    python main.py --job-id {self.project_id} --media --provider free",
+            sep,
+        ])
+
+        return "\n".join(lines)
+
