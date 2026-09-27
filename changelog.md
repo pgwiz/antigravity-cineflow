@@ -2,6 +2,37 @@
 
 All notable changes to the Video Workflow Studio are documented in this file.
 
+## [1.8.0] - 2026-09-27
+
+### Added
+- **Dedicated `--flow` Command Line Script Workflow (`main.py`)**:
+  - Added `--flow [CONCEPT]` CLI argument for generating the dedicated Gemini Flow direct script and visual consistency blueprint without consuming video generation credits.
+  - Enforced strict timing law: **"1 video is 10 seconds"** (e.g. 60-second episode = exactly 6 video segments of 10s each).
+  - Decomposes each 60-second episode into the standardized **6-Beat Storyboard Sequence**:
+    1. Beat 1: Establishing the World (Extreme Wide / Wide Shot, slow camera crane/dolly, environment anchor)
+    2. Beat 2: Character in Environment (Wide / Full Shot, establishes subject location relative to stage)
+    3. Beat 3: The Interaction / Inciting Incident (Medium Shot, subject interacts with key prop/environment)
+    4. Beat 4: Emotional Reaction / Climax Focus (Close-Up / MCU, high-tension focus on expression / detail)
+    5. Beat 5: Dynamic Turn / Consequence (Dynamic Action / Dutch / Push, escalation of narrative tension)
+    6. Beat 6: Resolution / Cliffhanger (Wide / Macro / Hold, resolution or hook for next episode)
+- **3-File Production Pack Generation (`pipeline/storyboard.py`, `output/`)**:
+  - Implemented `export_production_pack()` generating 3 distinct output files written to `output/` and `output/{project_id}/`:
+    1. **`master.txt`**: Comprehensive master production book referencing the AI Storyboard & Visual Consistency Architecture (Tier 1 Master Reference Sheets for Cast, Environment, and Key Props; full Character Bible; 3D spatial blocking; screenplay transcripts; 6-beat storyboard sequence; and human/CLI execution guide).
+    2. **`Scene.md`**: Dedicated directorial script covering sluglines, dramatic beats, transcripts, camera angles, optics, 180° action axis, Keyframe A/B start/end descriptions, and the **Sequencing & Episode Collection Directive** (compile generated clips into an Episode Collection in sequential order before proceeding to the next episode).
+    3. **`characters.md`**: Upstream manual pre-production character guide with suggested names/aliases, `Character info (optional) Describe how your character acts...`, required angles (Front View, 3/4 View, Side Profile on neutral gray background), and smart consistency fallback logic (checks local reference images and falls back to previous scene keyframes).
+- **Director Flow Engine Integration (`pipeline/director.py`)**:
+  - Added `DirectorAgent.create_flow_storyboard()` enforcing the 10s clip law and exporting the 3 production pack files.
+  - Enhanced `_decompose_to_shots()` to populate Keyframe A (Start), Keyframe B (End), anchors used, angle rules, and camera lens focal lengths.
+  - Enriched fallback character bible with `suggested_names`, `character_info`, and dynamic support for the aquatic matrimony cast (Batman, Lady Guppy, Sir Longneck, The Mystery Cat).
+- **Season Orchestrator Pack Integration (`pipeline/season.py`)**:
+  - Enriched `SEASON_CHARACTERS` with `suggested_names` and `character_info`.
+  - Added automated 3-file production pack export per episode (`season_ep01/`, etc.).
+- **FastAPI Flow Endpoint (`server.py`)**:
+  - Added `POST /api/v1/flow/script` (and alias `/api/v1/flow`) accepting `FlowScriptRequest` and returning the generated production files and full textual content.
+- **Automated Flow Test Suite (`tests/test_studio.py`)**:
+  - Added `TestFlowScriptGeneration` (5 new tests covering timing law enforcement, 3-file pack export, character fallback consistency, CLI `--flow` parsing, and FastAPI endpoint).
+  - Total test suite expanded to **72 / 72 passing (100%)**.
+
 ## [1.7.0] - 2026-09-27
 
 ### Added

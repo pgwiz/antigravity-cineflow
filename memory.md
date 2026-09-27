@@ -73,26 +73,45 @@
   - Media generation is strictly gated behind the `--media` flag (`python main.py --media ...` or `python main.py --season --media ...`).
 
 ### 6. Verification & Testing Suite
-- **Pytest Suite (`tests/test_studio.py`)**: 60 comprehensive unit and integration tests passing (100% pass rate) covering data models, cinematography, useapi client, Chrome automation, Flow error recovery, spatial scene blocking, visual mockup generation, discussion engine, text-first blueprints, FFmpeg stitching, last-frame chaining, FastAPI routes, and Season orchestrator math.
+- **Pytest Suite (`tests/test_studio.py`)**: 72 comprehensive unit and integration tests passing (100% pass rate) covering data models, cinematography, Omni Flash interactions, useapi client, Chrome automation, Flow error recovery, spatial scene blocking, visual mockup generation, discussion engine, text-first blueprints, flow script generation, FFmpeg stitching, last-frame chaining, FastAPI routes, and Season orchestrator math.
 - **Dry-run Validations**: Verified `--mode shot` (8s), `--mode short` (32s), `--mode episode` (48s), and `--season --episodes 8` (480s / 8 minutes season).
 - **Probed MP4 Masters**: Inspected via `ffprobe`, confirming valid stream headers, h264 video, AAC audio, and exact timeline duration matching storyboard specifications.
+
+### 7. Gemini Flow Directorial Script Architecture (`--flow`)
+- **CLI Flow Mode (`python main.py --flow [CONCEPT]`)**:
+  - Dedicated mode producing the production blueprint without generating media clips.
+  - Enforces the **Critical Timing Law: 1 video is 10 seconds** (e.g. 60-second episode = exactly 6 video segments).
+  - Each video prompt is restricted to describing **ONE clear, linear movement** feasible in 10s.
+- **The 3-File Production Pack (`output/`)**:
+  - Automatically exported to `output/` and `output/{project_id}/`:
+    1. **`master.txt`**: Complete master production blueprint (Tier 1 Master Reference Sheets: Sheet 1 Cast, Sheet 2 Environment, Sheet 3 Key Props; Character Bible; 3D spatial grid; full Screenplay; 6-beat storyboard sequence; and execution guide).
+    2. **`Scene.md`**: Directorial script detailing scenes, transcripts, camera angles, optics, 180° action axis, Keyframe A/B start/end descriptions, and the **Sequencing & Episode Collection Directive** (compile generated clips into an Episode Collection in sequential order before proceeding to the next episode).
+    3. **`characters.md`**: Upstream manual pre-production character guide with suggested names/aliases, `Character info (optional) Describe how your character acts...`, required angles (Front View, 3/4 View, Side Profile on neutral gray background), and smart consistency fallback logic (checks local reference images and falls back to previous scene keyframes).
+- **The Standard 6-Beat Storyboard Sequence**:
+  - Beat 1: Establishing the World (Extreme Wide / Wide Shot, slow camera crane/dolly, environment anchor)
+  - Beat 2: Character in Environment (Wide / Full Shot, establishes subject location relative to stage)
+  - Beat 3: The Interaction / Inciting Incident (Medium Shot, subject interacts with key prop/environment)
+  - Beat 4: Emotional Reaction / Climax Focus (Close-Up / MCU, high-tension focus on expression / detail)
+  - Beat 5: Dynamic Turn / Consequence (Dynamic Action / Dutch / Push, escalation of narrative tension)
+  - Beat 6: Resolution / Cliffhanger (Wide / Macro / Hold, resolution or hook for next episode)
 
 ---
 
 ## Active File Structure
 - `config.py`: Central settings, model strings, directory paths, flow user index, chrome debug port.
 - `skills/film_skills.py`: Cinematography grammar, lens optics, lighting styles, negative prompts, spatial prompt builder.
-- `pipeline/storyboard.py`: Scene data models, spatial grid points, character blocking, tracked objects, camera axis, JSON serialization.
-- `pipeline/director.py`: Director Agent, screenplay generation, 3D stage decomposition, visual DNA extraction.
+- `pipeline/storyboard.py`: Scene data models, spatial grid points, character blocking, tracked objects, camera axis, JSON serialization, and 3-file pack generators (`master.txt`, `Scene.md`, `characters.md`).
+- `pipeline/director.py`: Director Agent, screenplay generation, 3D stage decomposition, visual DNA extraction, `create_flow_storyboard()`, and interactive session.
+- `pipeline/omni_flash.py`: Gemini Omni 1.1 Flash video generation client leveraging official `gemini-omni-flash-api` skill.
 - `pipeline/chrome_flow.py`: Google Flow Ultra Chrome CDP automation driver with failure detection and auto-retry.
 - `pipeline/flow_client.py`: Google Flow session cookie internal client.
-- `pipeline/video_gen.py`: Multi-provider video generation engine (Chrome, Flow internal, useapi.net, Free, GenAI).
-- `pipeline/season.py`: 8-episode season orchestrator with spatial blocking, screenplay builder, episode assembly.
+- `pipeline/video_gen.py`: Multi-provider video generation engine (Omni Flash, Chrome, Flow internal, useapi.net, Free, GenAI).
+- `pipeline/season.py`: 8-episode season orchestrator with spatial blocking, screenplay builder, episode assembly, and per-episode production pack export.
 - `pipeline/mockup_generator.py`: Visual storyboard mockup cards and named character/object asset generator.
 - `pipeline/audio_gen.py`: Voiceover narration (ElevenLabs/TTS) and ambient soundtrack generation.
 - `pipeline/editor.py`: FFmpeg stitcher, `xfade` transition builder, audio multiplexer, multi-episode concatenator.
 - `pipeline/youtube_publisher.py`: YouTube Data API v3 OAuth2 uploader and SEO metadata.
-- `server.py`: FastAPI REST API bridge with mini-endpoints (`/api/v1/season/run`, `/api/v1/health`, etc.).
-- `main.py`: Master CLI runner (`--season`, `--generate-assets`, `--generate-mockups`, `--login-flow`, `--provider`, `--discuss`, `--media`).
-- `tests/test_studio.py`: Automated pytest / unittest regression and integration test suite (60 tests).
+- `server.py`: FastAPI REST API bridge with mini-endpoints (`/api/v1/flow/script`, `/api/v1/omni/status`, `/api/v1/season/run`, `/api/v1/health`, etc.).
+- `main.py`: Master CLI runner (`--flow`, `--season`, `--provider omni`, `--resolution`, `--generate-assets`, `--generate-mockups`, `--login-flow`, `--discuss`, `--media`).
+- `tests/test_studio.py`: Automated pytest / unittest regression and integration test suite (72 tests).
 

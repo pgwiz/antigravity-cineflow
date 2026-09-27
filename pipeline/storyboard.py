@@ -7,10 +7,11 @@ and explicit shot-by-shot production breakdowns.
 import json
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from pydantic import BaseModel, Field
 from datetime import datetime
 
+from config import settings
 from skills.film_skills import (
     ShotType,
     CameraMovement,
@@ -33,6 +34,11 @@ class CharacterProfile(BaseModel):
     character_id: str
     name: str = Field(..., description="Character name in caps, e.g., BATMAN / BRUCE WAYNE")
     role: str = Field(..., description="Protagonist, Antagonist, Mentor, Foil, Henchman")
+    suggested_names: List[str] = Field(default_factory=list, description="Suggested names, aliases, or code names for the character")
+    character_info: Optional[str] = Field(
+        default=None,
+        description="Character info (optional): Describe how your character acts, mannerisms, physical gestures, reactions...",
+    )
     appearance: str = Field(..., description="Physical build, height, facial features, jawline, hair, eye color")
     wardrobe_visual_dna: str = Field(..., description="Exact costume materials, armor textures, fabrics, color palette, emblems")
     voice_and_cadence: str = Field(..., description="Vocal pitch, accent, speech cadence, dialogue mannerisms")
@@ -40,6 +46,31 @@ class CharacterProfile(BaseModel):
     internal_conflict: str = Field(..., description="Core conflict: conscious Want vs. unconscious Need")
     prompt_anchor: str = Field(..., description="Immutable prompt snippet injected into all Veo shots featuring this character")
     reference_image_path: Optional[str] = None
+    angles_needed: List[str] = Field(
+        default_factory=lambda: ["Front View (neutral daytime lighting)", "3/4 View", "Side Profile"],
+        description="Required angles on neutral gray background for manual generation",
+    )
+
+    def resolve_consistency_status(self, fallback_image_path: Optional[str] = None) -> Tuple[Optional[str], str]:
+        """Smart consistency check: checks if character reference image exists;
+        if not, checks fallback image or upstream cast reference sheet.
+        """
+        # 1. Check direct reference_image_path
+        if self.reference_image_path and Path(self.reference_image_path).exists():
+            return self.reference_image_path, "Verified local reference image"
+
+        # 2. Check assets/characters/<slug>
+        slug = self.character_id.lower().replace(" ", "_")
+        for ext in [".png", ".jpg", ".webp"]:
+            p = settings.assets_dir / "characters" / f"{slug}{ext}"
+            if p.exists():
+                return str(p), f"Found matching asset in assets/characters/{slug}{ext}"
+
+        # 3. Smart consistency fallback: use previous image if available
+        if fallback_image_path and Path(fallback_image_path).exists():
+            return fallback_image_path, "Smart consistency fallback: Consistent with previous generated frame"
+
+        return None, "Manual reference sheet required: Front, 3/4, Profile on neutral gray background"
 
 class DialogueLine(BaseModel):
     """A single line of spoken dialogue in a scene."""
@@ -192,6 +223,12 @@ class Scene(BaseModel):
     # Visual Continuity & Reference
     reference_image_path: Optional[str] = None
     chain_from_previous_last_frame: bool = False
+    start_frame_description: Optional[str] = None
+    end_frame_description: Optional[str] = None
+    anchors_used: List[str] = Field(default_factory=list)
+    angle_rule: Optional[str] = None
+    camera_lens_mm: Optional[str] = "50mm"
+    motion_vector_lock: Optional[str] = None
     
     # Transitions & Audio
     transition_to_next: TransitionConfig = Field(default_factory=TransitionConfig)
@@ -303,44 +340,68 @@ class Storyboard(BaseModel):
 
         return "\n".join(lines)
 
-    def generate_production_dossier_text(self) -> str:
-        """Compiles a complete, publication-grade text production blueprint and instruction manual."""
+    def generate_master_text(self) -> str:
+        """Compiles the complete master production book referencing the AI Storyboard & Visual Consistency Architecture."""
         sep = "=" * 80
         sub_sep = "-" * 80
+        total_clips = len(self.scenes)
+        avg_shot_len = self.total_target_duration / max(1, total_clips)
+
         lines = [
             sep,
-            f"🎬 PRODUCTION BLUEPRINT & INSTRUCTION DOSSIER: {self.title.upper()}",
+            f"🎬 MASTER PRODUCTION BLUEPRINT & INSTRUCTION DOSSIER: {self.title.upper()}",
             f"Project ID: {self.project_id} | Created: {self.created_at}",
             sep,
             "\n[SECTION 1: EXECUTIVE PRODUCTION BRIEF & SCENE MATH]",
             sub_sep,
             f"Title:               {self.title}",
             f"Logline:             {self.logline}",
-            f"Genre / Style:       {self.genre}",
-            f"Target Duration:     {self.total_target_duration:.1f} seconds",
+            f"Genre / Aesthetic:   {self.genre}",
+            f"Target Duration:     {self.total_target_duration:.1f} seconds total",
             f"Aspect Ratio:        {self.aspect_ratio}",
-            f"Total Camera Shots:  {len(self.scenes)} shots",
-            f"Average Shot Length: {self.total_target_duration / max(1, len(self.scenes)):.1f} seconds/shot",
+            f"Total Camera Shots:  {total_clips} video segments",
+            f"Average Shot Length: {avg_shot_len:.1f} seconds/shot",
+            f"CRITICAL TIMING LAW: 1 VIDEO IS 10 SECONDS.",
+            f"Episode Math:        {total_clips} clips @ 10s = {total_clips * 10.0:.0f}s total run.",
+            f"Movement Rule:       Each video prompt covers ONLY ONE clear, linear movement feasible in 10s.",
+            "\n[SECTION 2: PRE-PRODUCTION CHARACTER BIBLE & TIER 1 MASTER REFERENCE SHEETS]",
+            sub_sep,
+            "Upstream Foundational reference sheets created BEFORE generating scene video clips:",
+            "\n  SHEET 1: Master Cast & Character Sheet",
+            "    - One image containing all main characters side by side against a clean, neutral gray background.",
+            "    - Three required angles per character: Front view, Three-quarter (3/4) view, Side profile.",
+            "    - Neutral daytime lighting (avoids baked-in dramatic shadows that corrupt video generation).",
+            "    - Specific, fixed clothing, hair texture, and physical attributes.",
+            "\n  SHEET 2: Master Environment & Lighting Sheet",
+            "    - Empty location plates with zero characters.",
+            "    - Defines the architecture, horizon lines, lighting axis, and primary color palette.",
+            "    - Shows key light sources (windows, lamps, skylights) so the video model understands shadow vectors.",
+            "\n  SHEET 3: Key Objects & Prop Sheet",
+            "    - High-detail isolation shots of any critical narrative object a character interacts with.",
+            "    - Uniform perspective and clean silhouette so the AI doesn't morph the object's geometry across cuts.",
+            "\n  PRE-PRODUCTION CHARACTER DOSSIERS & DRAMATIS PERSONAE:",
         ]
 
-        # Section 2: Character Bible
-        lines.extend([
-            f"\n[SECTION 2: PRE-PRODUCTION CHARACTER BIBLE]",
-            sub_sep,
-        ])
         if self.screenplay and self.screenplay.characters:
             for idx, c in enumerate(self.screenplay.characters, start=1):
+                sugg = ", ".join(c.suggested_names) if c.suggested_names else c.name
+                info = c.character_info or "Standard stoic cinematic presence; deliberate physical gestures."
+                img_path, status = c.resolve_consistency_status()
                 lines.extend([
                     f"\nCHARACTER #{idx:02d}: {c.name} ({c.role.upper()})",
+                    f"  * Suggested Names:      {sugg}",
+                    f"  * Character Info (Act): {info}",
                     f"  * Physical Hallmarks:   {c.appearance}",
                     f"  * Wardrobe / Visual DNA:{c.wardrobe_visual_dna}",
                     f"  * Vocal Cadence & Tone: {c.voice_and_cadence}",
                     f"  * Backstory & Trauma:   {c.backstory}",
                     f"  * Want vs. Need:        {c.internal_conflict}",
                     f"  * IMMUTABLE VEO ANCHOR: \"{c.prompt_anchor}\"",
+                    f"  * Consistency Status:   {status}",
+                    f"  * Reference Asset:      {img_path or 'None (use Sheet 1 Cast Anchor)'}",
                 ])
         else:
-            lines.append("  (No discrete character profiles loaded; standard ensemble cast)")
+            lines.append("  (Standard ensemble cast; no discrete profiles attached)")
 
         # Section 3: 3D Spatial Grid & Tracked Scene Objects
         lines.extend([
@@ -350,7 +411,7 @@ class Storyboard(BaseModel):
             "  - X-Axis: -1.0 (Stage Left) to +1.0 (Stage Right), 0.0 (Center Stage)",
             "  - Y-Axis: -1.0 (Downstage / Foreground) to +1.0 (Upstage / Background)",
             "  - Z-Axis:  0.0 (Floor Level) to +3.0 (Elevated Perch / Ledge in meters)",
-            "  - 180° Action Axis: Camera must remain on downstage side of vector to avoid disorientation.",
+            "  - 180° Action Axis: All cameras locked to one side of the action line to eliminate disorientation.",
             "\nTracked Scene Objects Across Cuts:",
         ])
         all_objects = {}
@@ -381,21 +442,28 @@ class Storyboard(BaseModel):
         else:
             lines.append("  (Screenplay transcript not attached)")
 
-        # Section 5: Shot-by-Shot Production Breakdown & Exact Prompts
+        # Section 5: Shot-by-Shot Camera Instructions & Veo Prompts
         lines.extend([
-            f"\n[SECTION 5: SHOT-BY-SHOT CAMERA INSTRUCTIONS & VEO PROMPTS]",
+            f"\n[SECTION 5: SHOT-BY-SHOT CAMERA INSTRUCTIONS & VEO PROMPTS (TIER 2 10s CLIPS)]",
             sub_sep,
         ])
         for s in self.scenes:
             lines.extend([
-                f"\n--- SHOT {s.scene_number:02d} [{s.timecode_start} - {s.timecode_end} | {s.duration_seconds:.1f}s] ---",
+                f"\n--- VIDEO CLIP {s.scene_number:02d} [{s.timecode_start} - {s.timecode_end} | {s.duration_seconds:.1f}s] ---",
                 f"Title:               {s.title}",
                 f"Slugline Reference:  {s.slugline_ref}",
-                f"Framing & Optics:    {s.shot_type} on {s.lens}",
-                f"Camera Motion:       {s.camera_movement}",
+                f"Shot Size & Optics:  {s.shot_type} on {s.lens} ({s.camera_lens_mm or '50mm'})",
+                f"Camera Movement:     {s.camera_movement}",
                 f"Lighting & Film:     {s.lighting} | {s.color_science}",
+                f"180° Action Axis:    {s.angle_rule or 'Locked on action vector'}",
                 f"Stage Environment:   {s.stage_environment}",
             ])
+            if s.anchors_used:
+                lines.append(f"Anchors Used:        {', '.join(s.anchors_used)}")
+            if s.start_frame_description:
+                lines.append(f"Keyframe A (Start):  {s.start_frame_description}")
+            if s.end_frame_description:
+                lines.append(f"Keyframe B (End):    {s.end_frame_description}")
             if s.character_blockings:
                 lines.append(f"Stage Characters:    {s.get_spatial_summary()}")
             if s.tracked_objects:
@@ -412,17 +480,24 @@ class Storyboard(BaseModel):
                 f"NEGATIVE PROMPT:     {s.negative_prompt}",
             ])
 
-        # Section 6: Execution Instructions
+        # Section 6: Human & AI Execution Instructions & Production Checklist
         lines.extend([
-            f"\n[SECTION 6: HUMAN & AI EXECUTION INSTRUCTIONS]",
+            f"\n[SECTION 6: HUMAN & AI EXECUTION INSTRUCTIONS & PRODUCTION CHECKLIST]",
             sub_sep,
-            "Option A (Manual Web Interface - Google Flow Ultra / Veo):",
+            "Production Quality Checklist:",
+            "  ✓ Asset Count:     3 Upstream Reference Sheets + 6 Storyboard Keyframes (for 60s episode).",
+            "  ✓ Continuity Axis: 180° dialogue action line strictly respected across all camera angles.",
+            "  ✓ Duration Match:  Each video prompt covers ONE clear, linear movement feasible in 10 seconds.",
+            "  ✓ Lighting Parity: Primary light angle remains on the same physical side across all frames.",
+            "\nOption A (Manual Web Interface - Google Flow Ultra / Veo / Omni Flash):",
             f"  1. Log into your Google Flow account (e.g. flow.google.com/u/5/).",
             f"  2. For each shot above, copy the 'EXACT VEO PROMPT' into the prompt box.",
-            f"  3. Set aspect ratio to {self.aspect_ratio} and select Veo 3.1 Fast / Quality.",
-            f"  4. Ensure character visual DNA and object locations match the specifications.",
+            f"  3. Set aspect ratio to {self.aspect_ratio}, set duration to 10s, and select Veo 3.1 / Omni 1.1 Flash.",
+            f"  4. Upload Sheet 1/2/3 reference images as needed to lock character visual DNA and object locations.",
             "\nOption B (Automated CLI Media Generation):",
-            f"  Run the following command to render actual video clips and master MP4:",
+            f"  Render actual video clips and master MP4 via Gemini Omni 1.1 Flash:",
+            f"    python main.py --job-id {self.project_id} --media --provider omni --resolution 1080p",
+            f"  Or with Chrome Flow Ultra:",
             f"    python main.py --job-id {self.project_id} --media --provider chrome",
             f"  Or with free offline motion engine:",
             f"    python main.py --job-id {self.project_id} --media --provider free",
@@ -430,4 +505,183 @@ class Storyboard(BaseModel):
         ])
 
         return "\n".join(lines)
+
+    def generate_production_dossier_text(self) -> str:
+        """Alias for generate_master_text() for backwards compatibility."""
+        return self.generate_master_text()
+
+    def generate_scene_markdown(self) -> str:
+        """Generates Scene.md: explicitly about scenes, transcripts, camera angles, 10s clip reminder, and collection assembly."""
+        lines = [
+            f"# Scene Production Script & Directorial Blueprint: {self.title}",
+            f"\n> **CRITICAL TIMING LAW & SCENE LENGTH CONSTRAINTS**:",
+            f"> - **1 VIDEO CLIP IS 10 SECONDS.**",
+            f"> - Total Episode Target Time: **{self.total_target_duration:.1f} seconds** ({len(self.scenes)} video segments).",
+            f"> - Each video prompt must describe **ONE clear, linear movement feasible in 10 seconds**.",
+            f"> - Never prompt for multi-minute or complex composite sequences inside a single clip.\n",
+            "---",
+            "\n## 🎬 Sequencing & Episode Collection Directive",
+            "**When a set target length has been reached (e.g., 60 seconds / 6 video clips for Episode 1):**",
+            "1. **Compile Collection:** The AI system / human operator must compile the generated video clips into an **Episode Collection** in exact chronological sequence (`scene_01.mp4` through `scene_06.mp4`).",
+            "2. **Verify Continuity:** Verify visual, spatial, and audio continuity across transitions (confirm 180° eyelines, character anchors, and lighting angles match).",
+            "3. **Proceed to Next Episode:** Only after the current Episode Collection is compiled and verified, proceed sequentially to the next episode in the season.\n",
+            "---",
+            "\n## 📜 Full Screenplay Scenes & Transcripts\n",
+        ]
+
+        if self.screenplay:
+            for s in self.screenplay.scenes:
+                lines.extend([
+                    f"### SCENE {s.scene_number:02d}: {s.slugline}",
+                    f"**Dramatic Beat:** {s.dramatic_beat or 'Narrative Progression'} | **Characters Present:** {', '.join(s.characters_present) if s.characters_present else 'Ensemble'}\n",
+                    f"{s.action}\n",
+                ])
+                for cue in s.sound_cues:
+                    lines.append(f"> 🔊 **SOUND CUE:** `{cue}`\n")
+                for d in s.dialogues:
+                    paren = f" *{d.parenthetical}*" if d.parenthetical else ""
+                    lines.append(f"- **{d.character.upper()}**{paren}: \"{d.line}\"")
+                lines.append("")
+        else:
+            lines.append("*(No screenplay attached)*\n")
+
+        lines.extend([
+            "---",
+            "\n## 🎥 Shot-by-Shot Staging, Angles & Camera Blocking\n",
+        ])
+
+        for s in self.scenes:
+            lines.extend([
+                f"### Video Clip {s.scene_number:02d} [{s.timecode_start} - {s.timecode_end} | {s.duration_seconds:.1f}s]: {s.title}",
+                f"- **Slugline Reference:** `{s.slugline_ref}`",
+                f"- **Shot Size & Lens:** `{s.shot_type}` with `{s.lens}` ({s.camera_lens_mm or '50mm'})",
+                f"- **Camera Movement:** `{s.camera_movement}`",
+                f"- **180° Action Axis & Eyeline:** `{s.angle_rule or 'Locked on action vector'}`",
+                f"- **Lighting & Color Science:** `{s.lighting}` | `{s.color_science}`",
+                f"- **Stage Environment:** {s.stage_environment}",
+            ])
+            if s.anchors_used:
+                lines.append(f"- **Anchors Used:** {', '.join(s.anchors_used)}")
+            if s.start_frame_description:
+                lines.append(f"- **Keyframe A (Start):** {s.start_frame_description}")
+            if s.end_frame_description:
+                lines.append(f"- **Keyframe B (End):** {s.end_frame_description}")
+            if s.character_blockings:
+                lines.append(f"- **Spatial Blocking & Poses:** {s.get_spatial_summary()}")
+            if s.tracked_objects:
+                lines.append(f"- **Tracked Objects & Anchors:** {s.get_object_summary()}")
+            if s.camera_blocking:
+                lines.append(f"- **Camera Axis & 180° Rule:** {s.get_camera_axis_summary()}")
+            lines.append(f"- **Action Description:** {s.action_description}")
+            if s.narration_text:
+                lines.append(f"- **Spoken Dialogue:** \"{s.narration_text}\"")
+            if s.sound_effects_cue:
+                lines.append(f"- **Sound Design / SFX:** *{s.sound_effects_cue}*")
+            lines.extend([
+                f"- **Exact Veo / Omni Prompt:**",
+                f"```text\n{s.visual_prompt}\n```",
+                f"- **Negative Prompt:** `{s.negative_prompt}`",
+                "",
+            ])
+
+        return "\n".join(lines)
+
+    def generate_characters_markdown(self) -> str:
+        """Generates characters.md: all characters to be generated (manual pre-production), suggested names, character acting info, and smart consistency checks."""
+        lines = [
+            f"# Character Reference & Generation Guide: {self.title}",
+            f"\n> **UPSTREAM PRE-PRODUCTION NOTICE**:",
+            f"> - **Character generation is an upstream manual or reference sheet process.**",
+            f"> - Generate these foundational reference sheets **BEFORE** rendering scene video clips to lock facial morphology, costume seams, and silhouette across the entire production.\n",
+            "---",
+            "\n## 🎨 Tier 1 — Sheet 1: Master Cast Reference Sheet Requirements",
+            "- **Canvas Format:** One image containing all main characters side by side against a clean, neutral gray background.",
+            "- **Lighting:** Neutral daytime lighting (avoids baked-in dramatic shadows that corrupt video generation).",
+            "- **Framing & Required Angles:** Full-body framing with **three required angles per character**:",
+            "  1. **Front View** (head-to-toe, arms resting naturally)",
+            "  2. **Three-Quarter (3/4) View** (showing facial plane and cheekbone depth)",
+            "  3. **Side Profile** (showing nose bridge, jawline, and posture)",
+            "- **Wardrobe DNA:** Fixed costume fabrics, armor plates, and distinct color palette.\n",
+            "---",
+            "\n## 👥 Dramatis Personae & Character Dossiers\n",
+        ]
+
+        if self.screenplay and self.screenplay.characters:
+            for idx, c in enumerate(self.screenplay.characters, start=1):
+                sugg = ", ".join(c.suggested_names) if c.suggested_names else c.name
+                info = c.character_info or "Describe how your character acts: Stoic, deliberate movements, scans room with hyper-alert eyes, never fidgets, brooding physical presence."
+                img_path, status = c.resolve_consistency_status()
+                lines.extend([
+                    f"### Character #{idx:02d}: {c.name} [{c.role.upper()}]",
+                    f"- **Suggested Names / Aliases:** `{sugg}`",
+                    f"- **Character Info (Optional - How Character Acts):**",
+                    f"  > *\"{info}\"*",
+                    f"- **Physical Appearance & Build:** {c.appearance}",
+                    f"- **Wardrobe & Visual DNA:** {c.wardrobe_visual_dna}",
+                    f"- **Voice & Speech Cadence:** {c.voice_and_cadence}",
+                    f"- **Backstory & Trauma:** {c.backstory}",
+                    f"- **Core Motivation (Want vs. Need):** {c.internal_conflict}",
+                    f"- **AI Visual Prompt Anchor:**",
+                    f"  `{c.prompt_anchor}`",
+                    f"- **Required Reference Angles:** {', '.join(c.angles_needed)}",
+                    f"- **Smart Consistency Check & Fallback:**",
+                    f"  - **Status:** `{status}`",
+                    f"  - **Reference Path:** `{img_path or 'None (use Sheet 1 Cast Anchor or previous scene frame)'}`",
+                    f"  - **Fallback Rule:** If character image does not exist yet, the video engine automatically inherits and preserves visual continuity from the previous scene's extracted keyframe.",
+                    "",
+                ])
+        else:
+            lines.append("*(No discrete character profiles loaded)*\n")
+
+        return "\n".join(lines)
+
+    def export_production_pack(self, output_dir: Optional[Path] = None) -> Dict[str, Path]:
+        """Exports master.txt, Scene.md, and characters.md to output_dir and top-level output/."""
+        target_dir = Path(output_dir) if output_dir else (settings.output_dir / self.project_id)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        settings.output_dir.mkdir(parents=True, exist_ok=True)
+
+        master_content = self.generate_master_text()
+        scene_content = self.generate_scene_markdown()
+        chars_content = self.generate_characters_markdown()
+
+        # 1. Write to target directory (e.g. output/{project_id}/)
+        master_file = target_dir / "master.txt"
+        scene_file = target_dir / "Scene.md"
+        chars_file = target_dir / "characters.md"
+
+        with open(master_file, "w", encoding="utf-8") as f:
+            f.write(master_content)
+        with open(scene_file, "w", encoding="utf-8") as f:
+            f.write(scene_content)
+        with open(chars_file, "w", encoding="utf-8") as f:
+            f.write(chars_content)
+
+        # 2. Write to top-level output/ directory for immediate access
+        top_master = settings.output_dir / "master.txt"
+        top_scene = settings.output_dir / "Scene.md"
+        top_chars = settings.output_dir / "characters.md"
+
+        with open(top_master, "w", encoding="utf-8") as f:
+            f.write(master_content)
+        with open(top_scene, "w", encoding="utf-8") as f:
+            f.write(scene_content)
+        with open(top_chars, "w", encoding="utf-8") as f:
+            f.write(chars_content)
+
+        # Also write legacy dossier name for backward compatibility
+        dossier_file = settings.output_dir / f"{self.project_id}_production_dossier.txt"
+        with open(dossier_file, "w", encoding="utf-8") as f:
+            f.write(master_content)
+
+        return {
+            "master_txt": master_file,
+            "scene_md": scene_file,
+            "characters_md": chars_file,
+            "top_master_txt": top_master,
+            "top_scene_md": top_scene,
+            "top_characters_md": top_chars,
+            "dossier_txt": dossier_file,
+        }
+
 

@@ -183,4 +183,24 @@ The Director Agent orchestrates video generation across multiple modular provide
 7. **Animated Fail-Safe**:
    - Synthesizes dynamic SMPTE test card clips with audio tone when network or quota errors occur, guaranteeing the production pipeline never produces blank video files.
 
+---
+
+## Directorial Flow Script Architecture (`--flow`)
+
+The Director Agent includes a dedicated **Flow Script Mode** (`python main.py --flow [CONCEPT]`) based on the *AI Storyboard & Visual Consistency Architecture (1-Minute / 6-Shot Pipeline)*:
+
+### Critical Directorial Laws:
+1. **1 Video Clip is Strictly 10 Seconds**: A standard 60-second episode consists of exactly 6 clips of 10s each. Each prompt covers only ONE clear, linear movement.
+2. **Upstream Master Reference Sheets**:
+   - **Sheet 1 (Cast)**: Front View, 3/4 View, Side Profile on neutral gray background under neutral daytime lighting.
+   - **Sheet 2 (Environment)**: Empty location plates with zero characters, defining horizon lines and lighting axes.
+   - **Sheet 3 (Key Props)**: Isolated interactive narrative objects (e.g. submerged gold wedding ring, crystal pod, brass key).
+3. **Sequencing & Episode Collection Directive**: When the episode reaches its target duration (e.g. 60s / 6 clips for Episode 1), compile the clips into an Episode Collection in exact sequential order (`scene_01.mp4` through `scene_06.mp4`), verify 180° continuity, and only then proceed to the next episode.
+4. **Smart Consistency Fallback**: If a character reference image does not yet exist in `assets/characters/`, the engine falls back to previous scene extracted keyframes or the Cast Anchor sheet.
+
+### Generated Production Files (`output/`):
+- **`master.txt`**: The overarching master production book with reference sheet specs, character bibles, spatial coordinates, full screenplay transcript, shot-by-shot prompts, and execution instructions.
+- **`Scene.md`**: Directorial blueprint covering scenes, transcripts, camera angles, 10s clip length reminders, and episode collection sequencing directives.
+- **`characters.md`**: Character pre-production guide with suggested names/aliases, character acting details (`Character info: Describe how your character acts...`), required reference angles, and smart consistency checks.
+
 

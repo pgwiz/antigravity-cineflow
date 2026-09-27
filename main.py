@@ -50,6 +50,13 @@ def parse_args():
 
     # Workflow controls
     parser.add_argument(
+        "--flow",
+        nargs="?",
+        const="script",
+        default=None,
+        help="Generate explicit flow script & visual consistency blueprint (master.txt, Scene.md, characters.md) enforcing 10s clip timing and reference sheets",
+    )
+    parser.add_argument(
         "--media",
         action="store_true",
         help="Render video clips, audio score, and master MP4. If omitted, generates complete text instructions, screenplays, and dossiers without consuming compute/quota.",
@@ -170,18 +177,18 @@ def run_pipeline(args):
     # Print explicit breakdown
     print("\n" + storyboard.format_breakdown_markdown())
 
-    # Format and save complete text production dossier
-    dossier_text = storyboard.generate_production_dossier_text()
-    dossier_file = settings.output_dir / f"{storyboard.project_id}_production_dossier.txt"
-    dossier_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(dossier_file, "w", encoding="utf-8") as f:
-        f.write(dossier_text)
+    # Format and save complete text production pack (master.txt, Scene.md, characters.md)
+    files = storyboard.export_production_pack()
+    dossier_text = storyboard.generate_master_text()
+    dossier_file = files["master_txt"]
 
     # If --media was not specified, stop here after delivering full text blueprint
     if not getattr(args, "media", False) and not getattr(args, "dry_run", False) and getattr(args, "re_render_scene", None) is None and not getattr(args, "stitch_only", False) and not getattr(args, "review_storyboard", False):
         print("\n" + "=" * 70)
         print("📄 FULL PRODUCTION INSTRUCTIONS & BLUEPRINT GENERATED (TEXT MODE)")
-        print(f"Dossier File:    {dossier_file}")
+        print(f"Master Book:     {files['top_master_txt']}")
+        print(f"Scene Blueprint: {files['top_scene_md']}")
+        print(f"Character Guide: {files['top_characters_md']}")
         print(f"Storyboard Data: {job_file}")
         print("=" * 70)
         print(dossier_text)
@@ -275,6 +282,43 @@ def main():
     args = parse_args()
     if args.serve:
         run_server(args.port)
+    elif args.flow:
+        director = DirectorAgent()
+        flow_concept = args.concept
+        if args.flow != "script" and args.flow is not None and len(str(args.flow).strip()) > 0:
+            flow_concept = str(args.flow).strip()
+
+        char_img = Path(args.character_image) if args.character_image else None
+        env_img = Path(args.environment_image) if args.environment_image else None
+        target_dur = args.duration if (args.duration != 24.0 or args.mode != "short") else 60.0
+
+        print("\n" + "=" * 75)
+        print("🎬 GEMINI FLOW DIRECTORIAL PIPELINE (1-MINUTE / 6-SHOT SCRIPT MODE)")
+        print(f"Concept:      {flow_concept}")
+        print(f"Duration:     {target_dur:.1f}s (Strictly 10s per clip)")
+        print(f"Aspect Ratio: {args.aspect}")
+        print("=" * 75)
+
+        sb = director.create_flow_storyboard(
+            concept=flow_concept,
+            total_duration=target_dur,
+            aspect_ratio=args.aspect,
+            character_reference_image=char_img,
+            environment_reference_image=env_img,
+            genre=args.genre,
+        )
+
+        files = sb.export_production_pack()
+        print("\n" + "=" * 75)
+        print("📄 PRODUCTION BLUEPRINT GENERATED SUCCESSFULLY (3 FILES):")
+        print(f"  1. Master Production Book: {files['top_master_txt']}")
+        print(f"  2. Scene & Directorial MD: {files['top_scene_md']}")
+        print(f"  3. Character Pre-Prod MD:  {files['top_characters_md']}")
+        print(f"  * Project Storyboard JSON: {settings.jobs_dir / f'{sb.project_id}.json'}")
+        print("=" * 75)
+        print(sb.generate_master_text())
+        print("=" * 75)
+        print(f"💡 All 3 production files written to {settings.output_dir} and {settings.output_dir / sb.project_id}")
     elif args.discuss:
         director = DirectorAgent()
         director.start_interactive_session(initial_concept=args.concept)

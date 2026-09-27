@@ -39,6 +39,14 @@ class CreateStoryboardRequest(BaseModel):
     character_reference_image: Optional[str] = Field(default=None, description="Path to uploaded character reference image")
     environment_reference_image: Optional[str] = Field(default=None, description="Path to environment reference image")
 
+class FlowScriptRequest(BaseModel):
+    concept: str = Field(..., description="Story concept or narrative prompt")
+    total_duration: float = Field(default=60.0, description="Total target length in seconds (enforces 10s per clip)")
+    aspect_ratio: str = Field(default="16:9", description="'16:9' or '9:16'")
+    genre: str = Field(default="Cinematic Neo-Noir", description="Genre or aesthetic theme")
+    character_reference_image: Optional[str] = Field(default=None, description="Path to uploaded character reference image")
+    environment_reference_image: Optional[str] = Field(default=None, description="Path to environment reference image")
+
 class RenderRequest(BaseModel):
     use_transitions: bool = Field(default=True, description="Whether to apply cinematic xfade transitions between clips")
     include_soundtrack: bool = Field(default=True, description="Whether to generate and mix ambient score")
@@ -121,6 +129,49 @@ def create_storyboard_endpoint(req: CreateStoryboardRequest):
         "screenplay_transcript": storyboard.screenplay.format_screenplay_transcript() if storyboard.screenplay else "",
         "storyboard": storyboard.model_dump(),
         "breakdown_markdown": storyboard.format_breakdown_markdown(),
+    }
+
+@app.post("/api/v1/flow/script", response_model=Dict[str, Any])
+@app.post("/api/v1/flow", response_model=Dict[str, Any])
+def create_flow_script_endpoint(req: FlowScriptRequest):
+    """Enforces the 1-Minute / 6-Shot Flow Architecture (1 video = 10s), generating master.txt, Scene.md, and characters.md."""
+    director = DirectorAgent()
+    char_img = Path(req.character_reference_image) if req.character_reference_image else None
+    env_img = Path(req.environment_reference_image) if req.environment_reference_image else None
+
+    storyboard = director.create_flow_storyboard(
+        concept=req.concept,
+        total_duration=req.total_duration,
+        aspect_ratio=req.aspect_ratio,
+        character_reference_image=char_img,
+        environment_reference_image=env_img,
+        genre=req.genre,
+    )
+
+    active_storyboards[storyboard.project_id] = storyboard
+    files = storyboard.export_production_pack()
+
+    return {
+        "project_id": storyboard.project_id,
+        "title": storyboard.title,
+        "scene_count": len(storyboard.scenes),
+        "total_target_duration": storyboard.total_target_duration,
+        "critical_timing_law": "1 video is 10 seconds (exactly 6 clips for 60s)",
+        "files": {
+            "master_txt": str(files["master_txt"]),
+            "scene_md": str(files["scene_md"]),
+            "characters_md": str(files["characters_md"]),
+            "top_master_txt": str(files["top_master_txt"]),
+            "top_scene_md": str(files["top_scene_md"]),
+            "top_characters_md": str(files["top_characters_md"]),
+        },
+        "character_bible": [c.model_dump() for c in storyboard.screenplay.characters] if storyboard.screenplay else [],
+        "screenplay_transcript": storyboard.screenplay.format_screenplay_transcript() if storyboard.screenplay else "",
+        "content": {
+            "master_txt": storyboard.generate_master_text(),
+            "scene_md": storyboard.generate_scene_markdown(),
+            "characters_md": storyboard.generate_characters_markdown(),
+        },
     }
 
 @app.get("/api/v1/screenplay/{project_id}")

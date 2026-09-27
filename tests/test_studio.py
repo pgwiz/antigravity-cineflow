@@ -1337,6 +1337,139 @@ class TestGeminiOmniFlashIntegration(unittest.TestCase):
         sys.argv = old_argv
 
 
+class TestFlowScriptGeneration(unittest.TestCase):
+    """Test suite for --flow script generation, 10s timing law, and 3-file production pack."""
+
+    def test_flow_storyboard_timing_law(self):
+        director = DirectorAgent()
+        sb = director.create_flow_storyboard(
+            concept="A lone detective inspecting neon clues in neo-Gotham",
+            total_duration=60.0,
+            aspect_ratio="16:9",
+        )
+        self.assertEqual(len(sb.scenes), 6)
+        self.assertEqual(sb.total_target_duration, 60.0)
+        for s in sb.scenes:
+            self.assertEqual(s.duration_seconds, 10.0)
+            self.assertIsNotNone(s.start_frame_description)
+            self.assertIsNotNone(s.end_frame_description)
+            self.assertTrue(len(s.anchors_used) > 0)
+            self.assertIn("180-degree", s.angle_rule)
+
+    def test_export_production_pack_three_files(self):
+        director = DirectorAgent()
+        sb = director.create_flow_storyboard(
+            concept="Batman investigates a matrimonial mystery with a koi and a giraffe",
+            total_duration=60.0,
+        )
+        with tempfile.TemporaryDirectory() as td:
+            files = sb.export_production_pack(output_dir=Path(td))
+            self.assertTrue(files["master_txt"].exists())
+            self.assertTrue(files["scene_md"].exists())
+            self.assertTrue(files["characters_md"].exists())
+            self.assertEqual(files["master_txt"].name, "master.txt")
+            self.assertEqual(files["scene_md"].name, "Scene.md")
+            self.assertEqual(files["characters_md"].name, "characters.md")
+
+            # Check master.txt contents
+            master_text = files["master_txt"].read_text(encoding="utf-8")
+            self.assertIn("MASTER PRODUCTION BLUEPRINT & INSTRUCTION DOSSIER", master_text)
+            self.assertIn("CRITICAL TIMING LAW: 1 VIDEO IS 10 SECONDS", master_text)
+            self.assertIn("SHEET 1: Master Cast & Character Sheet", master_text)
+            self.assertIn("SHEET 2: Master Environment & Lighting Sheet", master_text)
+            self.assertIn("SHEET 3: Key Objects & Prop Sheet", master_text)
+
+            # Check Scene.md contents
+            scene_text = files["scene_md"].read_text(encoding="utf-8")
+            self.assertIn("1 VIDEO CLIP IS 10 SECONDS", scene_text)
+            self.assertIn("Sequencing & Episode Collection Directive", scene_text)
+            self.assertIn("Compile Collection", scene_text)
+            self.assertIn("Shot-by-Shot Staging, Angles & Camera Blocking", scene_text)
+
+            # Check characters.md contents
+            chars_text = files["characters_md"].read_text(encoding="utf-8")
+            self.assertIn("Tier 1 — Sheet 1: Master Cast Reference Sheet Requirements", chars_text)
+            self.assertIn("Suggested Names / Aliases", chars_text)
+            self.assertIn("Character Info (Optional - How Character Acts)", chars_text)
+            self.assertIn("Smart Consistency Check & Fallback", chars_text)
+
+    def test_character_consistency_fallback(self):
+        char = CharacterProfile(
+            character_id="mysterious_drifter",
+            name="THE DRIFTER",
+            role="Protagonist",
+            appearance="Tall, weathered leather jacket",
+            wardrobe_visual_dna="Weathered brown leather, scarred knuckles",
+            voice_and_cadence="Whispery rasp",
+            backstory="Wanderer without memory",
+            internal_conflict="Truth vs survival",
+            prompt_anchor="The drifter in weathered brown leather jacket",
+        )
+        # Without any image
+        img, status = char.resolve_consistency_status()
+        self.assertIsNone(img)
+        self.assertIn("Manual reference sheet required", status)
+
+        # With fallback from previous frame
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            prev_path = f.name
+        try:
+            fallback_img, fallback_status = char.resolve_consistency_status(fallback_image_path=prev_path)
+            self.assertEqual(fallback_img, prev_path)
+            self.assertIn("Smart consistency fallback", fallback_status)
+        finally:
+            if Path(prev_path).exists():
+                Path(prev_path).unlink()
+
+    def test_cli_flow_argument_parsing(self):
+        from main import parse_args
+        import sys
+        old_argv = sys.argv
+        try:
+            # Default --flow flag
+            sys.argv = ["main.py", "--flow"]
+            args = parse_args()
+            self.assertEqual(args.flow, "script")
+
+            # Custom concept via --flow
+            sys.argv = ["main.py", "--flow", "Batman chasing a cat"]
+            args = parse_args()
+            self.assertEqual(args.flow, "Batman chasing a cat")
+
+            # Without --flow
+            sys.argv = ["main.py"]
+            args = parse_args()
+            self.assertIsNone(args.flow)
+        finally:
+            sys.argv = old_argv
+
+    def test_server_flow_script_endpoint(self):
+        from fastapi.testclient import TestClient
+        from server import app
+        client = TestClient(app)
+
+        resp = client.post(
+            "/api/v1/flow/script",
+            json={
+                "concept": "A vigilante confronting an elusive cat burglar on a clocktower",
+                "total_duration": 60.0,
+                "aspect_ratio": "16:9",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("project_id", data)
+        self.assertEqual(data["scene_count"], 6)
+        self.assertEqual(data["total_target_duration"], 60.0)
+        self.assertIn("files", data)
+        self.assertIn("master_txt", data["files"])
+        self.assertIn("scene_md", data["files"])
+        self.assertIn("characters_md", data["files"])
+        self.assertIn("content", data)
+        self.assertIn("master_txt", data["content"])
+        self.assertIn("1 video is 10 seconds", data["critical_timing_law"])
+
+
 if __name__ == "__main__":
     unittest.main()
 

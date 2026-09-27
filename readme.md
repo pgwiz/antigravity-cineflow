@@ -75,7 +75,23 @@ For YouTube publishing, place your `client_secret.json` in the root directory.
 
 ## CLI Usage
 
-### A. Interactive Discussion & Text-First Production (Default)
+### A. Dedicated Flow Directorial Script Generation (`--flow`)
+Enforces the **AI Storyboard & Visual Consistency Architecture (1-Minute / 6-Shot Pipeline)** with the strict timing law: **"1 video is 10 seconds"** (60s episode = exactly 6 video segments of 10s each).
+
+```bash
+# Generate the complete 3-file production pack (master.txt, Scene.md, characters.md) in output/:
+python main.py --flow
+
+# Or with custom narrative prompt:
+python main.py --flow "Batman investigating an ironical noir crime where a koi fish married a giraffe"
+```
+
+**Generates 3 production files in `output/` and `output/{project_id}/`:**
+- **`master.txt`**: Complete master production blueprint with Tier 1 Reference Sheets (Cast, Environment, Props), Pre-Production Character Bible, 3D Spatial Grid, full Hollywood Screenplay, 6-beat storyboard sequence, and execution instructions.
+- **`Scene.md`**: Directorial blueprint covering scenes, transcripts, camera angles, 10s clip length constraints, and the **Sequencing & Episode Collection Directive** (compile generated clips into an Episode Collection in sequential order before proceeding to the next episode).
+- **`characters.md`**: Pre-production character guide with suggested names/aliases, `Character info (optional) Describe how your character acts...`, required reference angles (Front, 3/4, Profile), and smart consistency fallback checks.
+
+### B. Interactive Discussion & Text-First Production (Default)
 By default, the studio operates in **Text-First Blueprint Mode**: it generates complete Character Bibles, full screenplays, 3D spatial stage coordinates, persistent tracked object anchors, and exact Veo prompts without consuming media compute or quota!
 
 ```bash
@@ -94,7 +110,7 @@ python main.py --generate-assets
 python main.py --generate-mockups --season --episodes 8
 ```
 
-### B. Media Rendering (`--media` Flag Required)
+### C. Media Rendering (`--media` Flag Required)
 When you are ready to render actual video clips, compose ambient audio scores, and stitch final master MP4s, simply pass the `--media` flag:
 
 ```bash
@@ -147,6 +163,7 @@ Interactive documentation is available at `http://localhost:8080/docs`.
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/health` | Check system status, FFmpeg, Chrome, and provider keys |
 | `POST` | `/api/v1/discuss` | Interactive writers' room discussion with the AI Director |
+| `POST` | `/api/v1/flow/script` | Generates 1-Minute / 6-Shot production pack (master.txt, Scene.md, characters.md) |
 | `POST` | `/api/v1/storyboard/create` | Generates explicit shot-by-shot storyboard JSON |
 | `GET` | `/api/v1/storyboard/{project_id}` | Retrieves existing storyboard |
 | `GET` | `/api/v1/dossier/{project_id}` | Retrieves complete text production blueprint and instructions |
@@ -164,7 +181,7 @@ Interactive documentation is available at `http://localhost:8080/docs`.
 
 ## Running Automated Tests
 
-Run the full unit and integration test suite (60 tests):
+Run the full unit and integration test suite (72 tests):
 ```bash
 python -m pytest tests/test_studio.py -v
 ```

@@ -101,13 +101,16 @@ class DirectorAgent:
                     "- character_id: lowercase identifier (e.g. 'batman', 'antagonist')\n"
                     "- name: full character name in uppercase\n"
                     "- role: Protagonist, Antagonist, Foil, or Mentor\n"
+                    "- suggested_names: list of suggested names/aliases\n"
+                    "- character_info: 'Character info (optional): Describe how your character acts, mannerisms, physical presence...'\n"
                     "- appearance: physical traits, build, facial structure, eyes\n"
                     "- wardrobe_visual_dna: exact fabrics, armor texture, color palette, emblems\n"
                     "- voice_and_cadence: vocal pitch, dialogue mannerisms, delivery speed\n"
                     "- backstory: foundational trauma and history\n"
                     "- internal_conflict: conscious Want vs. unconscious Need\n"
                     "- prompt_anchor: a compact, highly descriptive prompt string (under 30 words) "
-                    "that MUST be included in every AI video prompt featuring this character to lock in visual continuity."
+                    "that MUST be included in every AI video prompt featuring this character to lock in visual continuity.\n"
+                    "- angles_needed: ['Front View', 'Three-Quarter (3/4) View', 'Side Profile'] on neutral gray background"
                 )
                 user_msg = f"Story Concept: {concept}\nGenre: {genre}\n"
                 if char_img_dna:
@@ -253,6 +256,68 @@ class DirectorAgent:
             scenes=shots,
         )
 
+    def create_flow_storyboard(
+        self,
+        concept: str,
+        total_duration: float = 60.0,
+        aspect_ratio: str = "16:9",
+        character_reference_image: Optional[Path] = None,
+        environment_reference_image: Optional[Path] = None,
+        genre: str = "Cinematic Neo-Noir",
+    ) -> Storyboard:
+        """Stage 3 (Flow Mode): Enforces the AI Storyboard & Visual Consistency Architecture (1-Minute / 6-Shot Pipeline).
+        
+        Key Timing Law & Directorial Blueprint:
+        - 1 video clip is strictly 10 seconds.
+        - For a standard 60-second episode, decomposes into exactly 6 video segments (6 clips x 10s = 60s).
+        - Each prompt describes ONE clear, linear movement feasible in 10s.
+        - Upstream Reference Sheets: Sheet 1 (Cast Anchor), Sheet 2 (Environment Anchor), Sheet 3 (Key Props).
+        - Sequencing & Episode Collection Directive: When target duration is reached, compile into collection in sequential order.
+        - Auto-exports the 3 production pack files: master.txt, Scene.md, and characters.md.
+        """
+        clip_duration = 10.0
+        num_shots = max(1, round(total_duration / clip_duration))
+        project_id = f"flow_{str(uuid.uuid4())[:8]}"
+
+        print(f"[DirectorAgent] Flow Mode Initiated: 1 Video = 10 Seconds Law Enforced.")
+        print(f"[DirectorAgent] Target Duration: {total_duration:.1f}s -> Exactly {num_shots} video segments of {clip_duration:.1f}s.")
+
+        # 1. Character Bible with suggested names, acting info, and consistency checks
+        characters = self.build_character_bible(concept, genre, character_reference_image)
+
+        # 2. Write 3-beat Screenplay
+        screenplay = self.write_screenplay(concept, genre, characters, num_story_scenes=3)
+
+        # 3. Decompose into Camera Shots for Veo/Omni (10s each)
+        shots = self._decompose_to_shots(
+            screenplay=screenplay,
+            num_shots=num_shots,
+            total_duration=total_duration,
+            clip_duration=clip_duration,
+            aspect_ratio=aspect_ratio,
+            char_image=character_reference_image,
+        )
+
+        storyboard = Storyboard(
+            project_id=project_id,
+            title=screenplay.title,
+            logline=screenplay.logline,
+            genre=genre,
+            total_target_duration=total_duration,
+            aspect_ratio=aspect_ratio,
+            resolution=settings.default_resolution,
+            screenplay=screenplay,
+            scenes=shots,
+        )
+
+        # Save job json
+        job_file = settings.jobs_dir / f"{storyboard.project_id}.json"
+        storyboard.save(job_file)
+
+        # Auto-export 3 production pack files (master.txt, Scene.md, characters.md)
+        storyboard.export_production_pack()
+        return storyboard
+
     def _decompose_to_shots(
         self,
         screenplay: Screenplay,
@@ -375,6 +440,33 @@ class DirectorAgent:
                 camera_axis=cam_blocking.axis_of_action_180,
             )
 
+            # Derive 6-beat storyboard attributes
+            beat_idx = i % 6
+            if beat_idx == 0:
+                kf_a = f"Keyframe A (0.0s): High-angle panoramic vista of {script_scene.slugline}, establishing atmospheric architecture and horizon."
+                kf_b = f"Keyframe B ({dur:.1f}s): Camera crane/dolly descends through mist, locking onto downstage entrance vector."
+                anchors = ["Sheet 2: Master Environment Anchor", "Sheet 2: Architectural Plate"]
+            elif beat_idx == 1:
+                kf_a = f"Keyframe A (0.0s): Character enters frame at {char_zone}, silhouette outlined against rain reflections."
+                kf_b = f"Keyframe B ({dur:.1f}s): Steps into center-frame lighting, costume textures glistening with moisture."
+                anchors = ["Sheet 1: Master Cast Anchor", "Sheet 2: Master Environment Anchor"]
+            elif beat_idx == 2:
+                kf_a = f"Keyframe A (0.0s): Subject reaches toward key interactive prop ({tracked_objs[0].name})."
+                kf_b = f"Keyframe B ({dur:.1f}s): Physical contact established, caustics and reflections dancing across surface."
+                anchors = ["Sheet 1: Master Cast Anchor", "Sheet 3: Key Props Anchor"]
+            elif beat_idx == 3:
+                kf_a = f"Keyframe A (0.0s): Tight focus on character facial plane, eyes locking onto revelation."
+                kf_b = f"Keyframe B ({dur:.1f}s): Subtle reaction, brow tensing as diegetic sound breaks tension."
+                anchors = ["Sheet 1: Master Cast Anchor", "Sheet 3: Key Props Anchor"]
+            elif beat_idx == 4:
+                kf_a = f"Keyframe A (0.0s): Escalation of action, dynamic shift across the 180-degree axis."
+                kf_b = f"Keyframe B ({dur:.1f}s): Movement snaps to critical pause point as stakes shift."
+                anchors = ["Sheet 1: Master Cast Anchor", "Sheet 2: Master Environment Anchor"]
+            else:
+                kf_a = f"Keyframe A (0.0s): Camera pulls back into wide atmospheric tableau."
+                kf_b = f"Keyframe B ({dur:.1f}s): Final hold on the unresolved mystery before cut to next sequence."
+                anchors = ["Sheet 1: Master Cast Anchor", "Sheet 2: Master Environment Anchor", "Sheet 3: Key Props Anchor"]
+
             scene_shot = Scene(
                 scene_number=i + 1,
                 title=f"Shot {i+1:02d} - {script_scene.slugline}",
@@ -398,6 +490,12 @@ class DirectorAgent:
                 negative_prompt=DEFAULT_NEGATIVE_PROMPT,
                 reference_image_path=str(char_image) if (char_image and i == 0) else None,
                 chain_from_previous_last_frame=chain_continuation,
+                start_frame_description=kf_a,
+                end_frame_description=kf_b,
+                anchors_used=anchors,
+                angle_rule="180-degree action line preserved; camera operates strictly on South-East quadrant",
+                camera_lens_mm=lens.value,
+                motion_vector_lock="Continuous 10s unbroken action vector without abrupt jump-cuts",
                 transition_to_next=TransitionConfig(
                     transition_type=trans_type,
                     duration_seconds=0.5 if trans_type == TransitionType.DISSOLVE else 0.0,
@@ -418,7 +516,7 @@ class DirectorAgent:
         char_img: Optional[Path],
         dna_override: Optional[str],
     ) -> List[CharacterProfile]:
-        """Provides a rich Character Bible for Noir/Vigilante stories."""
+        """Provides a rich Character Bible for Noir/Vigilante and Absurdist stories."""
         batman_dna = (
             dna_override or 
             "Matte black Kevlar-weave ballistic suit, carbon-fiber sculpted chestplate with graphite bat emblem, "
@@ -429,6 +527,11 @@ class DirectorAgent:
             character_id="batman",
             name="BRUCE WAYNE / BATMAN",
             role="Protagonist",
+            suggested_names=["The Batman", "Bruce Wayne", "The Caped Crusader", "The World's Greatest Detective"],
+            character_info=(
+                "Describe how your character acts: Stoic, deliberate movements, scans room with hyper-alert eyes, "
+                "never fidgets, brooding physical presence, descends with predator-like silence."
+            ),
             appearance="Imposing 6'2 athletic muscular build, chiselled squared jawline with five o'clock shadow, intense brooding eyes.",
             wardrobe_visual_dna=batman_dna,
             voice_and_cadence="Deep, raspy baritone whisper. Deliberate, terse, authoritative, rarely uses contractions.",
@@ -436,18 +539,82 @@ class DirectorAgent:
             internal_conflict="Driven by vengeance to eliminate crime, but bound by a strict moral code never to become the monster he hunts.",
             prompt_anchor=f"Batman in {batman_dna}",
             reference_image_path=str(char_img) if char_img else None,
+            angles_needed=["Front View (neutral gray background)", "Three-Quarter (3/4) View", "Side Profile"],
         )
+
+        concept_lower = (concept or "").lower()
+        if any(w in concept_lower for w in ["cat", "koi", "fish", "giraffe", "matrimony", "wedding"]):
+            lady_guppy = CharacterProfile(
+                character_id="lady_guppy",
+                name="LADY GUPPY",
+                role="Innocent Matriarch",
+                suggested_names=["Lady Guppy", "The Aquatic Bride", "The Kohaku Matriarch"],
+                character_info=(
+                    "Describe how your character acts: Serenely glides in undulating circular patterns inside crystal saline sphere, "
+                    "rhythmic gill flutters, curious tilt toward surface light."
+                ),
+                appearance="14-inch Japanese Kohaku koi fish, vibrant fiery scarlet-orange and pearl-white scales, crystalline water sphere with brass rivets.",
+                wardrobe_visual_dna="Spherical crystalline water orb, brass rivets, soft cyan bioluminescent water glow.",
+                voice_and_cadence="Silent rhythmic bubble bursts, gentle water caresses against glass.",
+                backstory="Ancestral matriarch of the Imperial Tokyo Koi Sanctuaries, brought to Gotham for diplomatic harbor merger.",
+                internal_conflict="Longing for ancestral open waters while maintaining cross-species family honor.",
+                prompt_anchor="Japanese Kohaku koi fish in crystal glass water sphere with glowing cyan bubbles and brass fittings",
+                angles_needed=["Front View (neutral gray background)", "Three-Quarter (3/4) View", "Side Profile"],
+            )
+
+            sir_longneck = CharacterProfile(
+                character_id="sir_longneck",
+                name="SIR LONGNECK",
+                role="Groom / Savanna Aristocrat",
+                suggested_names=["Sir Longneck", "The Tall Baron", "Count Rothschild Giraffe"],
+                character_info=(
+                    "Describe how your character acts: Regal posture, towers 16 feet in air, slow dignified ear twitches, "
+                    "calmly ruminates acacia leaves amidst urban chaos, never panics."
+                ),
+                appearance="16-foot African savanna giraffe, geometric chestnut patches, custom-tailored midnight-black velvet tailcoat with silk bowtie.",
+                wardrobe_visual_dna="Midnight-black tailored velvet tailcoat, white silk bowtie, chestnut hide patterns.",
+                voice_and_cadence="Low infrasonic chest vibrations, gentle snorts of refined savanna nobility.",
+                backstory="Diplomatic emissary from the Serene Serengeti reserves visiting Gotham for municipal alliance.",
+                internal_conflict="Duty to fulfill cross-species matrimonial treaty versus intimidation of urban criminal shadows.",
+                prompt_anchor="Tall African giraffe in midnight-black velvet tuxedo and white silk bowtie in Gotham rain",
+                angles_needed=["Front View (neutral gray background)", "Three-Quarter (3/4) View", "Side Profile"],
+            )
+
+            the_cat = CharacterProfile(
+                character_id="the_mystery_cat",
+                name="THE MYSTERY CAT",
+                role="Antagonist / Feline Phantom",
+                suggested_names=["The Mystery Cat", "The Tuxedo Phantom", "Cipher Paws"],
+                character_info=(
+                    "Describe how your character acts: Sinuous, calculated feline agility, silent paw steps, "
+                    "winks with piercing golden eyes, adjusts miniature fedora, clutches brass key in jaws."
+                ),
+                appearance="Sleek black-and-white tuxedo cat, piercing golden-amber eyes, miniature tilted charcoal fedora, waterproof trenchcoat.",
+                wardrobe_visual_dna="Sleek obsidian and ivory fur, miniature charcoal fedora, tiny waterproof trenchcoat, antique brass key.",
+                voice_and_cadence="Low mocking purr, rhythmic tail flick, vanishing without audible trace.",
+                backstory="Master cat burglar who orchestrated the bizarre union to distract Gotham PD from maritime vault.",
+                internal_conflict="Covets priceless harbor relics while indulging in ironic Gotham theatrics.",
+                prompt_anchor="Sleek tuxedo cat with amber eyes wearing tiny charcoal fedora and trenchcoat clutching brass key",
+                angles_needed=["Front View (neutral gray background)", "Three-Quarter (3/4) View", "Side Profile"],
+            )
+            return [batman, lady_guppy, sir_longneck, the_cat]
 
         antagonist = CharacterProfile(
             character_id="shadow_operative",
             name="THE WHISPER",
             role="Antagonist",
+            suggested_names=["The Whisper", "Cipher Agent", "The Operative"],
+            character_info=(
+                "Describe how your character acts: Sinuous, calculated gestures, tilts head unnervingly when speaking, "
+                "glides without making footstep sounds, taps ceramic mask rhythmically."
+            ),
             appearance="Tall, wiry silhouette, concealed face under a high-collared trenchcoat and cracked porcelain mask.",
             wardrobe_visual_dna="Charcoal wool trenchcoat, weathered black leather gloves, cracked white ceramic half-mask with red cipher markings.",
             voice_and_cadence="Sibilant, soft-spoken, mocking cadence. Speaks in deliberate riddles.",
             backstory="A rogue intelligence asset who believes Gotham's corruption cannot be cured, only burned to ashes.",
             internal_conflict="Seeks absolute order through absolute destruction.",
             prompt_anchor="The Whisper in charcoal trenchcoat and cracked white porcelain half-mask",
+            angles_needed=["Front View (neutral gray background)", "Three-Quarter (3/4) View", "Side Profile"],
         )
 
         return [batman, antagonist]
@@ -687,16 +854,16 @@ class DirectorAgent:
         job_file = settings.jobs_dir / f"{storyboard.project_id}.json"
         storyboard.save(job_file)
 
-        # Output the complete text dossier
-        dossier_text = storyboard.generate_production_dossier_text()
-        dossier_path = settings.output_dir / f"{storyboard.project_id}_production_dossier.txt"
-        dossier_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(dossier_path, "w", encoding="utf-8") as f:
-            f.write(dossier_text)
+        # Output the complete production pack (master.txt, Scene.md, characters.md)
+        files = storyboard.export_production_pack()
+        dossier_text = storyboard.generate_master_text()
 
         print(dossier_text)
-        print(f"\n[OK] Full Production Instruction Dossier saved to: {dossier_path}")
-        print(f"[OK] Storyboard Data saved to: {job_file}")
+        print(f"\n[OK] Production Pack Generated:")
+        print(f"  * Master Text:       {files['master_txt']}")
+        print(f"  * Scene Blueprint:   {files['scene_md']}")
+        print(f"  * Characters Guide:  {files['characters_md']}")
+        print(f"  * Storyboard JSON:   {job_file}")
         print(f"\n💡 Media generation skipped (no --media flag specified).")
         print(f"To render video clips, audio mix, and master MP4, run:")
         print(f"  python main.py --job-id {storyboard.project_id} --media --provider chrome")

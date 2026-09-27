@@ -51,6 +51,8 @@ SEASON_CHARACTERS = {
     "Batman": {
         "full_name": "Bruce Wayne / The Batman",
         "role": "Lead Detective / Forensic Investigator",
+        "suggested_names": ["The Batman", "Bruce Wayne", "The Dark Knight", "The Caped Crusader"],
+        "character_info": "Describe how your character acts: Stoic, deliberate movements, scans room with hyper-alert eyes, never fidgets, brooding physical presence, descends with predator-like silence.",
         "appearance": "6'2\", rugged square jaw, matte-black carbon fiber tactical cowl with glowing white ocular lenses, rain-slicked Kevlar armor with gold utility belt, scalloped bat cape draped over shoulders.",
         "wardrobe_dna": "Dark charcoal battle plate, matte black cowl, wet rain texture, chiaroscuro lighting.",
         "vocal_cadence": "Deep, gravelly, ultra-serious hardboiled noir baritone. Never cracks a smile.",
@@ -60,6 +62,8 @@ SEASON_CHARACTERS = {
     "Lady Guppy": {
         "full_name": "Lady Guppy (The Bride)",
         "role": "The Innocent Aquatic Matriarch",
+        "suggested_names": ["Lady Guppy", "The Aquatic Bride", "The Kohaku Matriarch"],
+        "character_info": "Describe how your character acts: Serenely glides in undulating circular patterns inside crystal saline sphere, rhythmic gill flutters, curious tilt toward surface light.",
         "appearance": "A magnificent 14-inch Japanese Kohaku koi fish, vibrant fiery scarlet-orange and pearl-white scales, swimming serenely inside a brass-reinforced spherical glass water pod filled with bubbling mineral saline.",
         "wardrobe_dna": "Spherical crystalline water orb, brass rivets, soft cyan bioluminescent water glow.",
         "vocal_cadence": "Silent bubbles and subtle, rhythmic gill movements.",
@@ -69,6 +73,8 @@ SEASON_CHARACTERS = {
     "Sir Longneck": {
         "full_name": "Sir Longneck (The Groom)",
         "role": "The Towering Savanna Aristocrat",
+        "suggested_names": ["Sir Longneck", "The Tall Baron", "Count Rothschild Giraffe"],
+        "character_info": "Describe how your character acts: Regal posture, towers 16 feet in air, slow dignified ear twitches, calmly ruminates acacia leaves amidst urban chaos, never panics.",
         "appearance": "A regal 16-foot African savannah giraffe draped in a custom-tailored midnight-black velvet tailcoat with a white satin bowtie around its neck, calmly chewing acacia leaves in the Gotham rain.",
         "wardrobe_dna": "Geometric chestnut spots, tailored Victorian tuxedo coat, silk bowtie, tall silhouettes.",
         "vocal_cadence": "Dignified ear flicking, low sub-audible ruminations.",
@@ -78,6 +84,8 @@ SEASON_CHARACTERS = {
     "The Mystery Cat": {
         "full_name": "The Mystery Cat (The Mastermind)",
         "role": "The Elusive Feline Phantom",
+        "suggested_names": ["The Mystery Cat", "The Tuxedo Phantom", "Cipher Paws"],
+        "character_info": "Describe how your character acts: Sinuous, calculated feline agility, silent paw steps, winks with piercing golden eyes, adjusts miniature fedora, clutches brass key in jaws.",
         "appearance": "A sleek, muscular black-and-white tuxedo feline with piercing golden-amber eyes, wearing a tiny tilted charcoal fedora and a miniature waterproof trench coat, clutching a brass key in its jaws.",
         "wardrobe_dna": "Sleek obsidian fur, white chest patch, miniature fedora, glowing amber eyes.",
         "vocal_cadence": "A low, mocking purr followed by vanishing smoke.",
@@ -87,6 +95,8 @@ SEASON_CHARACTERS = {
     "Alfred Pennyworth": {
         "full_name": "Alfred Pennyworth",
         "role": "Sardonic Butler & Batcave Comms",
+        "suggested_names": ["Alfred Pennyworth", "Alfred", "Penny-One"],
+        "character_info": "Describe how your character acts: Impeccably composed, precise movements, dry deadpan demeanor, pours tea without spilling a single drop even during seismic shocks.",
         "appearance": "Impeccably groomed elderly gentleman in three-piece Savile Row wool suit with silver pocket watch, silver-rimmed spectacles reflecting Batcomputer monitors.",
         "wardrobe_dna": "Charcoal vest, pressed white collared shirt, silver tie, polished leather.",
         "vocal_cadence": "Dry, impeccably deadpan British sarcasm.",
@@ -852,12 +862,15 @@ class SeasonOrchestrator:
                 character_id=k.lower().replace(" ", "_"),
                 name=k.upper(),
                 role=v["role"],
+                suggested_names=v.get("suggested_names", [k]),
+                character_info=v.get("character_info"),
                 appearance=v["appearance"],
                 wardrobe_visual_dna=v["wardrobe_dna"],
                 voice_and_cadence=v["vocal_cadence"],
                 backstory="Key figure in Gotham's aquatic marital mystery.",
                 internal_conflict=v["want_need"],
                 prompt_anchor=v["prompt_anchor"],
+                angles_needed=["Front View (neutral gray background)", "Three-Quarter (3/4) View", "Side Profile"],
             )
             for k, v in SEASON_CHARACTERS.items()
         ]
@@ -1221,6 +1234,7 @@ class SeasonOrchestrator:
 
             ep_output_dir = settings.output_dir / f"season_ep{ep_num:02d}"
             ep_output_dir.mkdir(parents=True, exist_ok=True)
+            storyboard.export_production_pack(ep_output_dir)
 
             # 2. Generate Scene Clips with Last-Frame Continuity
             scene_clips: List[Path] = []
