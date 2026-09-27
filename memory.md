@@ -82,8 +82,15 @@
   - Dedicated mode producing the production blueprint without generating media clips.
   - Enforces the **Critical Timing Law: 1 video is 10 seconds** (e.g. 60-second episode = exactly 6 video segments).
   - Each video prompt is restricted to describing **ONE clear, linear movement** feasible in 10s.
-- **The 3-File Production Pack (`output/`)**:
-  - Automatically exported to `output/` and `output/{project_id}/`:
+- **The 3-File Production Pack & Dedicated Scene Folders (`output/flow/temp/`)**:
+  - Legacy output files (105 items) archived to `output_archive/pre_flow_cleanup_20260927/`.
+  - Active flow productions output directly to dedicated directory `output/flow/` with active temporary working directory `output/flow/temp/`.
+  - Inside `output/flow/temp/`, each 10-second scene/shot has its own AI-defined dedicated folder (e.g. `scene_01_neo_gotham_rooftop_establishing_world/`, `scene_02_batman_on_precipice_character_in_environment/`).
+  - Each dedicated scene folder contains:
+    - `prompt.txt`: Standalone prompt with cinematography specs, exact Veo/Omni prompt, negative prompt, keyframe descriptions, audio cues, and dialogue.
+    - `scene_info.json`: Machine-readable metadata with blocking, camera quadrant, and timing law (10.0s).
+    - `instructions.txt`: Clear manual instructions for Google Flow Web UI.
+  - Automatically exported to `output/flow/temp/`, `output/flow/`, top-level `output/`, and `output/{project_id}/`:
     1. **`master.txt`**: Complete master production blueprint (Tier 1 Master Reference Sheets: Sheet 1 Cast, Sheet 2 Environment, Sheet 3 Key Props; Character Bible with Generation Descriptions; 3D spatial grid; full Screenplay; 6-beat storyboard sequence; and execution guide).
     2. **`Scene.md`**: Directorial script detailing scenes, transcripts, camera angles, optics, 180° action axis, Keyframe A/B start/end descriptions, and the **Sequencing & Episode Collection Directive** (compile generated clips into an Episode Collection in sequential order before proceeding to the next episode).
     3. **`characters.md`**: Upstream manual pre-production character guide aligning with Google Flow Character Creator UI fields:

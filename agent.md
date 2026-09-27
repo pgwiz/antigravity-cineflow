@@ -201,9 +201,18 @@ The Director Agent includes a dedicated **Flow Script Mode** (`python main.py --
 3. **Sequencing & Episode Collection Directive**: When the episode reaches its target duration (e.g. 60s / 6 clips for Episode 1), compile the clips into an Episode Collection in exact sequential order (`scene_01.mp4` through `scene_06.mp4`), verify 180° continuity, and only then proceed to the next episode.
 4. **Smart Consistency Fallback**: If a character reference image does not yet exist in `assets/characters/`, the engine falls back to previous scene extracted keyframes or the Cast Anchor sheet.
 
-### Generated Production Files (`output/`):
-- **`master.txt`**: The overarching master production book with reference sheet specs, character bibles, spatial coordinates, full screenplay transcript, shot-by-shot prompts, and execution instructions.
-- **`Scene.md`**: Directorial blueprint covering scenes, transcripts, camera angles, 10s clip length reminders, and episode collection sequencing directives.
-- **`characters.md`**: Character pre-production guide aligning with Google Flow's Character Creator UI: Suggested names/aliases, **Description for generating the character** (ready-to-paste reference sheet turnaround prompt), **Character info (optional - how character acts)**, required reference angles, and smart consistency checks.
+### Generated Production Files & Scene Folders (`output/flow/temp/`):
+- **Temporary Flow Workspace**: Active flow productions generate into `output/flow/temp/`, keeping root `output/` clean. (Legacy files archived to `output_archive/pre_flow_cleanup_20260927/`).
+- **Core Production Files**:
+  - **`master.txt`**: The overarching master production book with reference sheet specs, character bibles with generation descriptions, spatial coordinates, full screenplay transcript, shot-by-shot prompts, and execution instructions.
+  - **`Scene.md`**: Directorial blueprint covering scenes, transcripts, camera angles, 10s clip length reminders, dedicated scene folder links, and episode collection sequencing directives.
+  - **`characters.md`**: Character pre-production guide aligning with Google Flow's Character Creator UI: Suggested names/aliases, **Description for generating the character** (ready-to-paste reference sheet turnaround prompt), **Character info (optional - how character acts)**, required reference angles, and smart consistency checks.
+- **Dedicated Per-Scene Folders (`output/flow/temp/<scene_slug>/`)**:
+  - Inside `output/flow/temp/`, each 10-second scene has its own AI-named dedicated folder (e.g. `scene_01_neo_gotham_rooftop_establishing_world/`).
+  - Contains:
+    - **`prompt.txt`**: Dedicated Veo/Omni visual prompt with lens optics, lighting, camera movement, negative prompts, start/end keyframe descriptions, audio cues, and dialogue.
+    - **`scene_info.json`**: Machine-readable metadata with blocking, camera quadrant, and timing law (10.0s).
+    - **`instructions.txt`**: Step-by-step human guide for copying into Google Flow / Veo interface.
+
 
 

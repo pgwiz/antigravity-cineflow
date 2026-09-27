@@ -40,6 +40,8 @@ ENV/
 
 # Output and temp files
 output/
+output_archive/
+archive/
 jobs/
 temp/
 mockups/

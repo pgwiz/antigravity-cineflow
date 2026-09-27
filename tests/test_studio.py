@@ -1394,6 +1394,24 @@ class TestFlowScriptGeneration(unittest.TestCase):
             self.assertIn("Character Info (Optional - How Character Acts)", chars_text)
             self.assertIn("Smart Consistency Check & Fallback", chars_text)
 
+            # Check dedicated scene folders
+            self.assertIn("scene_folders", files)
+            self.assertEqual(len(files["scene_folders"]), 6)
+            for sf in files["scene_folders"]:
+                self.assertTrue(sf.exists())
+                self.assertTrue((sf / "prompt.txt").exists())
+                self.assertTrue((sf / "scene_info.json").exists())
+                self.assertTrue((sf / "instructions.txt").exists())
+                prompt_content = (sf / "prompt.txt").read_text(encoding="utf-8")
+                self.assertIn("SCENE", prompt_content)
+                self.assertIn("EXACT VEO / OMNI PROMPT", prompt_content)
+
+            # Check flow/temp files
+            self.assertTrue(files["flow_temp_dir"].exists())
+            self.assertTrue((files["flow_temp_dir"] / "master.txt").exists())
+            self.assertTrue((files["flow_temp_dir"] / "Scene.md").exists())
+            self.assertTrue((files["flow_temp_dir"] / "characters.md").exists())
+
     def test_character_consistency_fallback(self):
         char = CharacterProfile(
             character_id="mysterious_drifter",

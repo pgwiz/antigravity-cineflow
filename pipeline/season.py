@@ -13,6 +13,7 @@ mystery of a Japanese koi fish married to a savannah giraffe, framed by a myster
 import os
 import json
 import time
+import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -1034,9 +1035,13 @@ class SeasonOrchestrator:
                 camera_axis=cam_blocking.axis_of_action_180,
             )
 
+            clean_desc = re.sub(r"[^a-zA-Z0-9]+", "_", sc["description"][:30]).strip("_").lower()
+            season_folder_name = f"scene_{sc['scene_number']:02d}_{clean_desc}"
+
             scene = Scene(
                 scene_number=sc["scene_number"],
                 title=f"Scene {sc['scene_number']:02d}: {sc['scale']}",
+                folder_name=season_folder_name,
                 slugline_ref=ep_data["title"],
                 action_description=sc["description"],
                 shot_type=sc["scale"],

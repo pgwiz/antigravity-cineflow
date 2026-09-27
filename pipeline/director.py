@@ -3,6 +3,7 @@
 import os
 import json
 import uuid
+import re
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
@@ -468,9 +469,24 @@ class DirectorAgent:
                 kf_b = f"Keyframe B ({dur:.1f}s): Final hold on the unresolved mystery before cut to next sequence."
                 anchors = ["Sheet 1: Master Cast Anchor", "Sheet 2: Master Environment Anchor", "Sheet 3: Key Props Anchor"]
 
+            # AI defines the dedicated folder name dynamically
+            beat_tags = [
+                "establishing_world",
+                "character_in_environment",
+                "inciting_interaction",
+                "emotional_reaction",
+                "dynamic_consequence",
+                "resolution_cliffhanger",
+            ]
+            beat_tag = beat_tags[i % len(beat_tags)]
+            clean_slug = re.sub(r"[^a-zA-Z0-9]+", "_", script_scene.slugline).strip("_").lower()
+            clean_slug = re.sub(r"^(ext_|int_)", "", clean_slug)[:24].rstrip("_")
+            ai_folder_name = f"scene_{i+1:02d}_{clean_slug}_{beat_tag}"
+
             scene_shot = Scene(
                 scene_number=i + 1,
                 title=f"Shot {i+1:02d} - {script_scene.slugline}",
+                folder_name=ai_folder_name,
                 slugline_ref=script_scene.slugline,
                 timecode_start=f"{start_m:02d}:{start_s:02d}",
                 timecode_end=f"{end_m:02d}:{end_s:02d}",

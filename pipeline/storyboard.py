@@ -5,6 +5,8 @@ and explicit shot-by-shot production breakdowns.
 """
 
 import json
+import re
+import shutil
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
@@ -256,11 +258,27 @@ class Scene(BaseModel):
     sound_effects_cue: Optional[str] = None
     
     # Output artifacts
+    folder_name: Optional[str] = Field(
+        default=None,
+        description="Dedicated folder name defined by AI for this scene, e.g. scene_01_neo_gotham_tower_establishing_world",
+    )
     output_clip_path: Optional[str] = None
     last_frame_path: Optional[str] = None
     status: SceneStatus = SceneStatus.PENDING
     error_message: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    def get_folder_name(self) -> str:
+        """Returns the AI-defined dedicated directory name for this scene."""
+        if self.folder_name and self.folder_name.strip():
+            return self.folder_name.strip()
+        raw_slug = self.title or self.slugline_ref or "shot"
+        clean = re.sub(r"[^a-zA-Z0-9]+", "_", raw_slug).strip("_").lower()
+        clean = re.sub(r"^(shot|scene)_\d+_", "", clean)
+        clean = clean[:40].rstrip("_")
+        if not clean:
+            clean = "shot"
+        return f"scene_{self.scene_number:02d}_{clean}"
 
     def get_spatial_summary(self) -> str:
         """Returns compact spatial blocking summary for prompt injection."""
@@ -575,6 +593,7 @@ class Storyboard(BaseModel):
         for s in self.scenes:
             lines.extend([
                 f"### Video Clip {s.scene_number:02d} [{s.timecode_start} - {s.timecode_end} | {s.duration_seconds:.1f}s]: {s.title}",
+                f"- **Dedicated Scene Folder:** `{s.get_folder_name()}/`",
                 f"- **Slugline Reference:** `{s.slugline_ref}`",
                 f"- **Shot Size & Lens:** `{s.shot_type}` with `{s.lens}` ({s.camera_lens_mm or '50mm'})",
                 f"- **Camera Movement:** `{s.camera_movement}`",
@@ -660,11 +679,87 @@ class Storyboard(BaseModel):
 
         return "\n".join(lines)
 
-    def export_production_pack(self, output_dir: Optional[Path] = None) -> Dict[str, Path]:
-        """Exports master.txt, Scene.md, and characters.md to output_dir and top-level output/."""
+    def _write_scene_folder_files(self, s: Scene, scene_dir: Path) -> None:
+        """Writes prompt.txt, scene_info.json, and instructions.txt inside a scene's dedicated folder."""
+        scene_dir.mkdir(parents=True, exist_ok=True)
+
+        prompt_lines = [
+            "=" * 75,
+            f"SCENE {s.scene_number:02d} PROMPT SPECIFICATION [{s.timecode_start} - {s.timecode_end} | {s.duration_seconds:.1f}s]",
+            "=" * 75,
+            f"Folder Name:         {s.get_folder_name()}",
+            f"Title:               {s.title}",
+            f"Slugline Reference:  {s.slugline_ref}",
+            f"Shot Size & Optics:  {s.shot_type} on {s.lens} ({s.camera_lens_mm or '50mm'})",
+            f"Camera Movement:     {s.camera_movement}",
+            f"Lighting & Film:     {s.lighting} | {s.color_science}",
+            f"180° Action Axis:    {s.angle_rule or 'Locked on action vector'}",
+            f"Stage Environment:   {s.stage_environment}",
+            "",
+            "EXACT VEO / OMNI PROMPT:",
+            s.visual_prompt,
+            "",
+            "NEGATIVE PROMPT:",
+            s.negative_prompt,
+            "",
+        ]
+        if s.start_frame_description:
+            prompt_lines.append(f"Keyframe A (Start):  {s.start_frame_description}")
+        if s.end_frame_description:
+            prompt_lines.append(f"Keyframe B (End):    {s.end_frame_description}")
+        if s.character_blockings:
+            prompt_lines.append(f"Stage Characters:    {s.get_spatial_summary()}")
+        if s.tracked_objects:
+            prompt_lines.append(f"Tracked Objects:     {s.get_object_summary()}")
+        if s.camera_blocking:
+            prompt_lines.append(f"Camera Axis:         {s.get_camera_axis_summary()}")
+        if s.action_description:
+            prompt_lines.append(f"Action Description:  {s.action_description}")
+        if s.narration_text:
+            prompt_lines.append(f"Spoken Dialogue:     \"{s.narration_text}\"")
+        if s.sound_effects_cue:
+            prompt_lines.append(f"Sound / SFX Cue:     {s.sound_effects_cue}")
+
+        with open(scene_dir / "prompt.txt", "w", encoding="utf-8") as f:
+            f.write("\n".join(prompt_lines))
+
+        # scene_info.json
+        scene_dict = s.model_dump()
+        scene_dict["folder_name"] = s.get_folder_name()
+        with open(scene_dir / "scene_info.json", "w", encoding="utf-8") as f:
+            json.dump(scene_dict, f, indent=2, default=str)
+
+        # instructions.txt
+        instructions = [
+            f"GOOGLE FLOW GENERATION INSTRUCTIONS FOR SCENE {s.scene_number:02d}",
+            "=" * 60,
+            f"Dedicated Folder:  {s.get_folder_name()}",
+            f"Clip Duration:     {s.duration_seconds:.1f}s (Timing Law: 1 video clip is 10 seconds)",
+            f"Resolution:        1080p (or 720p)",
+            f"Aspect Ratio:      {self.aspect_ratio}",
+            "",
+            "Steps for Google Flow (flow.google.com/u/5/):",
+            "1. Copy the EXACT VEO / OMNI PROMPT from prompt.txt.",
+            "2. Paste into Google Flow prompt box.",
+            "3. Set clip duration to 10s and model to Veo 3.1 Fast / Quality / Omni Flash.",
+            "4. Upload starting image reference (from assets/ or previous scene's last frame) if available.",
+            f"5. Once generated, save the downloaded MP4 into this folder as: scene_{s.scene_number:02d}.mp4",
+        ]
+        with open(scene_dir / "instructions.txt", "w", encoding="utf-8") as f:
+            f.write("\n".join(instructions))
+
+    def export_production_pack(self, output_dir: Optional[Path] = None) -> Dict[str, Any]:
+        """Exports master.txt, Scene.md, and characters.md, plus dedicated per-scene folders in output/flow/temp/ and target_dir."""
         target_dir = Path(output_dir) if output_dir else (settings.output_dir / self.project_id)
         target_dir.mkdir(parents=True, exist_ok=True)
         settings.output_dir.mkdir(parents=True, exist_ok=True)
+
+        flow_dir = settings.output_dir / "flow"
+        flow_temp_dir = settings.output_dir / "flow" / "temp"
+        flow_dir.mkdir(parents=True, exist_ok=True)
+        if flow_temp_dir.exists():
+            shutil.rmtree(flow_temp_dir, ignore_errors=True)
+        flow_temp_dir.mkdir(parents=True, exist_ok=True)
 
         master_content = self.generate_master_text()
         scene_content = self.generate_scene_markdown()
@@ -694,6 +789,39 @@ class Storyboard(BaseModel):
         with open(top_chars, "w", encoding="utf-8") as f:
             f.write(chars_content)
 
+        # 3. Write to dedicated output/flow/ and output/flow/temp/
+        flow_master = flow_dir / "master.txt"
+        flow_scene = flow_dir / "Scene.md"
+        flow_chars = flow_dir / "characters.md"
+        with open(flow_master, "w", encoding="utf-8") as f:
+            f.write(master_content)
+        with open(flow_scene, "w", encoding="utf-8") as f:
+            f.write(scene_content)
+        with open(flow_chars, "w", encoding="utf-8") as f:
+            f.write(chars_content)
+
+        with open(flow_temp_dir / "master.txt", "w", encoding="utf-8") as f:
+            f.write(master_content)
+        with open(flow_temp_dir / "Scene.md", "w", encoding="utf-8") as f:
+            f.write(scene_content)
+        with open(flow_temp_dir / "characters.md", "w", encoding="utf-8") as f:
+            f.write(chars_content)
+
+        # 4. Create dedicated scene folders (each scene in its own folder)
+        scene_folders_flow: List[Path] = []
+        scene_folders_target: List[Path] = []
+        for s in self.scenes:
+            fname = s.get_folder_name()
+            # In output/flow/temp/
+            f_dir = flow_temp_dir / fname
+            self._write_scene_folder_files(s, f_dir)
+            scene_folders_flow.append(f_dir)
+
+            # In target_dir
+            t_dir = target_dir / fname
+            self._write_scene_folder_files(s, t_dir)
+            scene_folders_target.append(t_dir)
+
         # Also write legacy dossier name for backward compatibility
         dossier_file = settings.output_dir / f"{self.project_id}_production_dossier.txt"
         with open(dossier_file, "w", encoding="utf-8") as f:
@@ -706,6 +834,13 @@ class Storyboard(BaseModel):
             "top_master_txt": top_master,
             "top_scene_md": top_scene,
             "top_characters_md": top_chars,
+            "flow_dir": flow_dir,
+            "flow_temp_dir": flow_temp_dir,
+            "flow_master_txt": flow_master,
+            "flow_scene_md": flow_scene,
+            "flow_characters_md": flow_chars,
+            "scene_folders": scene_folders_flow,
+            "target_scene_folders": scene_folders_target,
             "dossier_txt": dossier_file,
         }
 

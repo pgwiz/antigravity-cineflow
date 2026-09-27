@@ -310,15 +310,19 @@ def main():
 
         files = sb.export_production_pack()
         print("\n" + "=" * 75)
-        print("📄 PRODUCTION BLUEPRINT GENERATED SUCCESSFULLY (3 FILES):")
+        print("📄 PRODUCTION BLUEPRINT GENERATED SUCCESSFULLY (3 FILES + SCENE FOLDERS):")
         print(f"  1. Master Production Book: {files['top_master_txt']}")
         print(f"  2. Scene & Directorial MD: {files['top_scene_md']}")
         print(f"  3. Character Pre-Prod MD:  {files['top_characters_md']}")
+        print(f"  * Dedicated Flow Working Dir: {files['flow_temp_dir']}")
+        print(f"  * Individual Scene Folders ({len(files.get('scene_folders', []))} scenes):")
+        for sf in files.get("scene_folders", []):
+            print(f"      📁 {sf.name}/  [prompt.txt, scene_info.json, instructions.txt]")
         print(f"  * Project Storyboard JSON: {settings.jobs_dir / f'{sb.project_id}.json'}")
         print("=" * 75)
         print(sb.generate_master_text())
         print("=" * 75)
-        print(f"💡 All 3 production files written to {settings.output_dir} and {settings.output_dir / sb.project_id}")
+        print(f"💡 All production files written to {settings.flow_temp_dir}, {settings.flow_dir}, and {settings.output_dir / sb.project_id}")
     elif args.discuss:
         director = DirectorAgent()
         director.start_interactive_session(initial_concept=args.concept)

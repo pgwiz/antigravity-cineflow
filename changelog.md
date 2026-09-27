@@ -38,7 +38,17 @@ All notable changes to the Video Workflow Studio are documented in this file.
   - Updated `generate_characters_markdown()` to render a dedicated, copy-paste ready fenced text block for `- **Description for Generating the Character (Flow Character Prompt):**`.
   - Updated `generate_master_text()` to output `Generation Desc:` for every character in `master.txt`.
   - Added comprehensive reference sheet generation descriptions for all characters across `director.py` and `season.py` (Batman, Lady Guppy, Sir Longneck, The Mystery Cat, The Whisper, and Alfred Pennyworth).
-  - Added unit test `test_character_generation_description` asserting both custom prompts and dynamic algorithmic fallback synthesis.
+- **Dedicated Per-Scene Folder Architecture & Output Cleanup (`output/flow/temp/`, `pipeline/storyboard.py`)**:
+  - Archived 105 legacy output files and folders from root `output/` into `output_archive/pre_flow_cleanup_20260927/` to keep active productions pristine; configured `.gitignore` to ignore `output_archive/` and `archive/`.
+  - Added dedicated flow directories to `config.py`: `flow_dir` (`output/flow`) and `flow_temp_dir` (`output/flow/temp`).
+  - Added AI-defined per-scene folder naming in `DirectorAgent._decompose_to_shots` and `SeasonOrchestrator`: formats names dynamically as `scene_{i+1:02d}_{clean_slug}_{beat_tag}` (e.g., `scene_01_neo_gotham_rooftop_establishing_world`, `scene_02_batman_on_precipice_character_in_environment`).
+  - Added `_write_scene_folder_files()` in `pipeline/storyboard.py` generating dedicated assets inside each scene's folder:
+    1. **`prompt.txt`**: Complete, self-contained prompt specifying camera shot scale, motion, optics, lighting, characters present, negative prompt, start/end keyframes, audio/SFX cues, and dialogue.
+    2. **`scene_info.json`**: Machine-readable metadata with scene index, slugline, timing law (10.0s), camera specs, and 3D spatial stage blocking coordinates.
+    3. **`instructions.txt`**: Direct step-by-step human guide for copying into Google Flow / Veo web interface.
+  - Updated `export_production_pack()` to automatically write the 3 master files (`master.txt`, `Scene.md`, `characters.md`) and all dedicated scene folders into `output/flow/temp/` (and mirrors to `output/flow/` and `output/`).
+  - Updated CLI console output (`main.py`) and FastAPI `/api/v1/flow/script` response (`server.py`) to report `flow_dir`, `flow_temp_dir`, and all created `scene_folders`.
+  - Added unit test assertions in `tests/test_studio.py` verifying creation and contents of all 6 dedicated scene folders.
 
 ## [1.7.0] - 2026-09-27
 

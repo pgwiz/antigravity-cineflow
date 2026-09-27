@@ -86,10 +86,14 @@ python main.py --flow
 python main.py --flow "Batman investigating an ironical noir crime where a koi fish married a giraffe"
 ```
 
-**Generates 3 production files in `output/` and `output/{project_id}/`:**
-- **`master.txt`**: Complete master production blueprint with Tier 1 Reference Sheets (Cast, Environment, Props), Pre-Production Character Bible, 3D Spatial Grid, full Hollywood Screenplay, 6-beat storyboard sequence, and execution instructions.
-- **`Scene.md`**: Directorial blueprint covering scenes, transcripts, camera angles, 10s clip length constraints, and the **Sequencing & Episode Collection Directive** (compile generated clips into an Episode Collection in sequential order before proceeding to the next episode).
-- **`characters.md`**: Pre-production character guide aligning with Google Flow's Character Creator UI: Suggested names/aliases, **Description for generating the character** (ready-to-paste reference sheet turnaround prompt), **Character info (optional - how character acts)**, required reference angles (Front, 3/4, Profile), and smart consistency fallback checks.
+**Generates production files and dedicated scene folders in `output/flow/temp/` (and `output/`):**
+- **Core Production Files**:
+  - **`master.txt`**: Complete master production blueprint with Tier 1 Reference Sheets (Cast, Environment, Props), Pre-Production Character Bible with generation descriptions, 3D Spatial Grid, full Hollywood Screenplay, 6-beat storyboard sequence, and execution instructions.
+  - **`Scene.md`**: Directorial blueprint covering scenes, transcripts, camera angles, 10s clip length constraints, dedicated scene folder links, and the **Sequencing & Episode Collection Directive** (compile generated clips into an Episode Collection in sequential order before proceeding to the next episode).
+  - **`characters.md`**: Pre-production character guide aligning with Google Flow's Character Creator UI: Suggested names/aliases, **Description for generating the character** (ready-to-paste reference sheet turnaround prompt), **Character info (optional - how character acts)**, required reference angles (Front, 3/4, Profile), and smart consistency fallback checks.
+- **Dedicated Per-Scene Folders (`output/flow/temp/<scene_slug>/`)**:
+  - Each 10-second scene is isolated in its own dedicated, AI-named folder (e.g. `scene_01_neo_gotham_rooftop_establishing_world/`).
+  - Contains **`prompt.txt`** (standalone Veo prompt, optics, lighting, negative prompt, keyframes, audio), **`scene_info.json`** (metadata, blocking, timing), and **`instructions.txt`** (manual workflow steps).
 
 ### B. Interactive Discussion & Text-First Production (Default)
 By default, the studio operates in **Text-First Blueprint Mode**: it generates complete Character Bibles, full screenplays, 3D spatial stage coordinates, persistent tracked object anchors, and exact Veo prompts without consuming media compute or quota!

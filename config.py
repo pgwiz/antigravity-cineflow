@@ -97,6 +97,14 @@ class Settings(BaseModel):
     jobs_dir: Path = BASE_DIR / "jobs"
     temp_dir: Path = BASE_DIR / "temp"
 
+    @property
+    def flow_dir(self) -> Path:
+        return self.output_dir / "flow"
+
+    @property
+    def flow_temp_dir(self) -> Path:
+        return self.output_dir / "flow" / "temp"
+
     # Video Defaults
     default_clip_duration: float = 8.0
     default_aspect_ratio: str = "16:9"  # "16:9" or "9:16"
