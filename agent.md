@@ -161,21 +161,26 @@ When composing scene prompts, the agent must adhere to the six layers of visual 
 ## Generation Providers
 
 The Director Agent orchestrates video generation across multiple modular providers:
-1. **Option 1: Google Flow Ultra Chrome Automation (`provider="chrome"`)**:
+1. **Gemini Omni 1.1 Flash (`provider="omni"`)**:
+   - Interfaces directly with Google's `interactions.create` API using `model="gemini-omni-1.1-flash"` via `google-genai >= 2.25.0` and the installed `gemini-omni-flash-api` skill.
+   - Multimodal role tagging: `<FIRST_FRAME>` starting image from previous scene's extracted last frame, `<LAST_FRAME>` transition targets, and `<IMAGE_REF_N>` character reference images.
+   - Enforces unbroken camera rules: `"In a single unbroken scene, continuous shot, no scene cuts."`
+   - Configurable resolution: `360p`, `720p`, `1080p`, and `4k`.
+2. **Option 1: Google Flow Ultra Chrome Automation (`provider="chrome"`)**:
    - Automated browser interaction via Chrome DevTools Protocol (CDP) WebSocket and Selenium.
    - Operates directly on user's Ultra subscription at `https://flow.google.com/u/5/` or custom profile.
    - Enters prompts, selects Veo 3.1 models, uploads starting frames for seed continuation, and downloads finished MP4 clips.
-2. **Option 2: Google Flow Session Cookie Client (`provider="flow_internal"`)**:
+3. **Option 2: Google Flow Session Cookie Client (`provider="flow_internal"`)**:
    - Headless HTTP client utilizing authenticated session cookies (`__Secure-1PSID`, `__Secure-3PSID`, `SAPISID`).
-3. **Option 3: useapi.net Google Flow API v1 (`provider="useapi"`)**:
+4. **Option 3: useapi.net Google Flow API v1 (`provider="useapi"`)**:
    - REST API bridge wrapping Google Flow (`veo-3.1-fast`, `veo-3.1-quality`, `veo-3.1-lite`, `omni-flash`).
    - Supports asset uploading (`POST /assets`), character entity consistency (`POST /characters`), native extension (`POST /videos/extend`), and server-side concatenation (`POST /videos/concatenate`).
-4. **Option 0: 100% Free AI Motion Engine (`provider="free"`)**:
+5. **Option 0: 100% Free AI Motion Engine (`provider="free"`)**:
    - Zero-cost, zero-token generation using Pollinations.ai (Flux/SDXL models) + FFmpeg 2.5D Hollywood camera motion synthesis.
    - Automatically renders the Director's intended camera movements (dolly, pan, tilt, crane descent) with 24fps cinema cadence and fine film grain.
-5. **Direct Google GenAI SDK (`provider="genai"`)**:
+6. **Direct Google GenAI SDK (`provider="genai"`)**:
    - Direct API connection using `client.models.generate_videos` with Google AI Studio credentials.
-6. **Animated Fail-Safe**:
+7. **Animated Fail-Safe**:
    - Synthesizes dynamic SMPTE test card clips with audio tone when network or quota errors occur, guaranteeing the production pipeline never produces blank video files.
 
 

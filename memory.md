@@ -5,7 +5,7 @@
 - **Python**: 3.11.9
 - **FFmpeg**: Version 8.0.1 (with libx264, libx265, whisper, aac, full build)
 - **Active Gemini API Key**: Configured in `.env` (supports `gemini-3.5-flash-lite`, `veo-3.1-generate-preview`, `veo-3.1-fast-generate-preview`)
-- **Primary AI SDKs**: `google-genai` (v2.10.0), `google-api-python-client` (v2.193.0), `google-antigravity` (v0.1.18 verified)
+- **Primary AI SDKs**: `google-genai` (v2.25.0 with Interactions API), `google-api-python-client` (v2.193.0), `google-antigravity` (v0.1.18 verified)
 - **Web Framework**: FastAPI (v0.115.0) + Uvicorn (v0.30.6)
 
 ---
@@ -18,6 +18,13 @@
 - Screenplays follow standard Hollywood formatting: Sluglines (`EXT. LOCATION - TIME`), action descriptions in present tense, centered character names, parentheticals, and dialogue.
 
 ### 2. Video Generation Providers
+- **Gemini Omni 1.1 Flash (`provider="omni"`)**:
+  - Leverages official skill `gemini-omni-flash-api` installed at `C:\Users\pgwiz\.gemini\config\skills\gemini-omni-flash-api\`.
+  - Interfaces directly with Google's `interactions.create` API using `model="gemini-omni-1.1-flash"` via `google-genai >= 2.25.0`.
+  - Supports multimodal role tagging: `<FIRST_FRAME>` starting image from previous scene's extracted last frame, `<LAST_FRAME>` transition targets, and `<IMAGE_REF_N>` character reference images.
+  - Automatically prepends `"In a single unbroken scene, continuous shot, no scene cuts."` to prevent random AI cuts.
+  - Native multi-resolution: `360p`, `720p`, `1080p`, and `4k`.
+  - Integrated via `pipeline/omni_flash.py`, `pipeline/video_gen.py`, and CLI `--provider omni --resolution 1080p`.
 - **Option 1: Google Flow Ultra Chrome Automation (`provider="chrome"`)**:
   - Implemented in `pipeline/chrome_flow.py` using Chrome DevTools Protocol (CDP) WebSocket and Selenium.
   - Connects to user Google account by index (e.g. `https://flow.google.com/u/5/`) or persistent profile directory (`temp/flow_profile`).

@@ -55,7 +55,7 @@ class DiscussRequest(BaseModel):
 class SeasonRunRequest(BaseModel):
     episodes: int = Field(default=8, ge=1, le=8, description="Number of episodes to produce (1-8)")
     aspect_ratio: str = Field(default="16:9", description="'16:9' or '9:16'")
-    provider: Optional[str] = Field(default=None, description="Generation provider: 'free', 'chrome', 'flow_internal', 'useapi'")
+    provider: Optional[str] = Field(default=None, description="Generation provider: 'free', 'omni', 'chrome', 'flow_internal', 'useapi'")
     dry_run: bool = Field(default=False, description="Whether to run synthetic preview clips")
     generate_media: bool = Field(default=False, description="Whether to render video and audio media (default: False for text-only)")
 
@@ -78,6 +78,10 @@ def health_check():
         "chrome_available": Path(settings.chrome_binary).exists(),
         "flow_internal_configured": bool(settings.google_flow_cookies),
         "useapi_configured": bool(settings.useapi_token),
+        "omni_configured": bool(settings.gemini_api_key),
+        "omni_skill_available": Path(settings.omni_skill_dir).exists(),
+        "omni_resolution": getattr(settings, "omni_resolution", "720p"),
+        "omni_model": getattr(settings, "omni_model", "gemini-omni-1.1-flash"),
         "useapi_model": settings.useapi_model,
         "gemini_api_key_configured": bool(settings.gemini_api_key),
         "youtube_secrets_configured": settings.youtube_client_secrets_file.exists(),
@@ -374,5 +378,21 @@ def run_season_endpoint(req: SeasonRunRequest, background_tasks: BackgroundTasks
     return {
         "status": "completed",
         "manifest": manifest,
+    }
+
+@app.get("/api/v1/omni/status")
+def omni_status():
+    """Inspects Gemini Omni 1.1 Flash skill and API availability."""
+    from pipeline.omni_flash import GeminiOmniFlashClient
+    client = GeminiOmniFlashClient()
+    return {
+        "status": "ready" if client.is_configured else "needs_api_key",
+        "api_key_set": client.is_configured,
+        "skill_installed": client.is_skill_available,
+        "skill_dir": str(client.skill_dir),
+        "model": client.model,
+        "resolution": client.resolution,
+        "valid_resolutions": ["360p", "720p", "1080p", "4k"],
+        "timeout": client.timeout,
     }
 

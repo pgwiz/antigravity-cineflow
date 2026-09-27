@@ -2,6 +2,28 @@
 
 All notable changes to the Video Workflow Studio are documented in this file.
 
+## [1.7.0] - 2026-09-27
+
+### Added
+- **Official Google Gemini Omni Flash Skill Installation (`gemini-omni-flash-api`)**:
+  - Installed full skill repository from `google-gemini/gemini-skills` into `C:\Users\pgwiz\.gemini\config\skills\gemini-omni-flash-api\`.
+  - Installed comprehensive `SKILL.md`, `scripts/upload_file.py`, `scripts/video/generate_video.py`, `scripts/video/prep_video.py`, and `scripts/video/inspect_video.py`.
+  - Upgraded Python SDK `google-genai` to `2.25.0` with native support for the `Interactions` API.
+- **Gemini Omni 1.1 Flash Video Client (`pipeline/omni_flash.py`)**:
+  - Implemented `GeminiOmniFlashClient` directly interfacing with Google's `interactions.create` with `model="gemini-omni-1.1-flash"`.
+  - Added support for multimodal role tagging: `<FIRST_FRAME>` starting image, `<LAST_FRAME>` transition target, and `<IMAGE_REF_N>` character visual DNA anchors.
+  - Added prompt optimization injecting unbroken single-shot directives (`"In a single unbroken scene, continuous shot, no scene cuts."`) to prevent AI cut artifacts.
+  - Added native multi-resolution rendering: `360p`, `720p`, `1080p`, and `4k`.
+  - Added video inspection via `inspect_video()` querying duration, resolution, fps, codecs, and audio streams.
+- **Studio Provider Integration (`pipeline/video_gen.py`, `config.py`, `main.py`)**:
+  - Added `omni` as a first-class video provider alongside `free`, `chrome`, `flow_internal`, `useapi`, and `genai`.
+  - Enabled automatic continuity chaining passing previous scene last frame to next scene's starting frame.
+  - Added CLI flag `--resolution {360p, 720p, 1080p, 4k}`.
+  - Added FastAPI status endpoint `GET /api/v1/omni/status` and updated `GET /api/v1/health`.
+- **Omni Flash Automated Test Suite (`tests/test_studio.py`)**:
+  - Added `TestGeminiOmniFlashIntegration` (7 new tests covering client initialization, resolution validation, prompt formatting, mocked interactions generation, engine dispatch, server status, and CLI parsing).
+  - Total test suite expanded to **67 / 67 passing (100%)**.
+
 ## [1.6.0] - 2026-09-26
 
 ### Added

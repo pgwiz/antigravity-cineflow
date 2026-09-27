@@ -75,9 +75,15 @@ def parse_args():
     # Provider Options
     parser.add_argument(
         "--provider",
-        choices=["free", "chrome", "flow_internal", "useapi", "genai"],
+        choices=["free", "omni", "chrome", "flow_internal", "useapi", "genai"],
         default=settings.video_provider,
-        help="Video generation provider: 'free' (Zero-cost AI Keyframes + 2.5D Hollywood Motion), 'chrome' (Chrome CDP Automation), 'flow_internal' (Session Cookie), 'useapi' (Google Flow API v1), or 'genai' (Direct Veo)",
+        help="Video generation provider: 'free' (Zero-cost AI Keyframes + 2.5D Hollywood Motion), 'omni' (Gemini Omni 1.1 Flash), 'chrome' (Chrome CDP Automation), 'flow_internal' (Session Cookie), 'useapi' (Google Flow API v1), or 'genai' (Direct Veo)",
+    )
+    parser.add_argument(
+        "--resolution",
+        choices=["360p", "720p", "1080p", "4k"],
+        default=getattr(settings, "omni_resolution", "720p"),
+        help="Video output resolution for Gemini Omni Flash: '360p', '720p', '1080p', or '4k' (default: 720p)",
     )
     parser.add_argument("--login-flow", action="store_true", help="Launch interactive Chrome window to authenticate Google Flow Ultra (Option 1)")
     parser.add_argument("--extract-cookies", action="store_true", help="Extract authenticated session cookies from Chrome and save to .env (Option 2)")
@@ -107,6 +113,9 @@ def run_pipeline(args):
     print("=" * 70)
     print("🎬 VIDEO WORKFLOW STUDIO - AUTONOMOUS PRODUCTION PIPELINE")
     print("=" * 70)
+
+    if getattr(args, "resolution", None):
+        settings.omni_resolution = args.resolution
 
     # Calculate target duration based on mode if not explicitly set
     total_dur = args.duration

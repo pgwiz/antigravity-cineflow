@@ -26,7 +26,7 @@ class Settings(BaseModel):
         default_factory=lambda: Path(os.getenv("YOUTUBE_TOKEN_FILE", BASE_DIR / "youtube_token.json"))
     )
 
-    # Models & Providers: "free" (Zero-cost AI Keyframes + 2.5D Hollywood Motion), "chrome" (Chrome Automation), "flow_internal" (Session Cookie), "useapi" (Google Flow), "genai" (Direct Veo)
+    # Models & Providers: "omni" (Gemini Omni 1.1 Flash via Interactions API), "free" (Zero-cost AI Keyframes + 2.5D Hollywood Motion), "chrome" (Chrome Automation), "flow_internal" (Session Cookie), "useapi" (Google Flow), "genai" (Direct Veo)
     video_provider: str = Field(
         default_factory=lambda: os.getenv("VIDEO_PROVIDER", "free" if not os.getenv("USEAPI_TOKEN") else "useapi")
     )
@@ -74,6 +74,20 @@ class Settings(BaseModel):
     )
     useapi_account_email: Optional[str] = Field(
         default_factory=lambda: os.getenv("USEAPI_ACCOUNT_EMAIL", None)
+    )
+
+    # Gemini Omni 1.1 Flash (Interactions API / Official Skill) Settings
+    omni_model: str = Field(
+        default_factory=lambda: os.getenv("OMNI_MODEL", "gemini-omni-1.1-flash")
+    )
+    omni_resolution: str = Field(
+        default_factory=lambda: os.getenv("OMNI_RESOLUTION", "720p")  # "360p", "720p", "1080p", "4k"
+    )
+    omni_timeout: int = Field(
+        default_factory=lambda: int(os.getenv("OMNI_TIMEOUT", "600"))
+    )
+    omni_skill_dir: Path = Field(
+        default_factory=lambda: Path(os.getenv("OMNI_SKILL_DIR", r"C:\Users\pgwiz\.gemini\config\skills\gemini-omni-flash-api"))
     )
 
     # Paths

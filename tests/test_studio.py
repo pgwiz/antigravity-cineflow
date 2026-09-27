@@ -1208,6 +1208,135 @@ class TestTextFirstAndDiscussionWorkflow(unittest.TestCase):
         sys.argv = old_argv
 
 
+class TestGeminiOmniFlashIntegration(unittest.TestCase):
+    """Test suite for Gemini Omni 1.1 Flash skill, client, and studio integration."""
+
+    def test_omni_client_initialization(self):
+        from pipeline.omni_flash import GeminiOmniFlashClient
+        client = GeminiOmniFlashClient(api_key="test-key", model="gemini-omni-1.1-flash", resolution="1080p")
+        self.assertEqual(client.model, "gemini-omni-1.1-flash")
+        self.assertEqual(client.resolution, "1080p")
+        self.assertTrue(client.is_configured)
+        self.assertTrue(client.is_skill_available)
+
+    def test_omni_resolution_validation(self):
+        from pipeline.omni_flash import GeminiOmniFlashClient
+        client = GeminiOmniFlashClient()
+        self.assertEqual(client.validate_resolution("360p"), "360p")
+        self.assertEqual(client.validate_resolution("720p"), "720p")
+        self.assertEqual(client.validate_resolution("1080p"), "1080p")
+        self.assertEqual(client.validate_resolution("4k"), "4k")
+        self.assertEqual(client.validate_resolution("8k"), "720p")  # fallback
+        self.assertEqual(client.validate_resolution(None), "720p")
+
+    def test_omni_prompt_formatting(self):
+        from pipeline.omni_flash import GeminiOmniFlashClient
+        client = GeminiOmniFlashClient()
+
+        # 1. Basic prompt gets unbroken shot rule
+        p1 = client.format_omni_prompt("Batman stands in pouring rain")
+        self.assertIn("In a single unbroken scene, continuous shot, no scene cuts.", p1)
+        self.assertIn("Batman stands in pouring rain", p1)
+
+        # 2. First frame and last frame role tagging
+        p2 = client.format_omni_prompt(
+            "Lady Guppy looks through the crystalline water orb",
+            first_frame=Path("frame0.png"),
+            last_frame=Path("frame1.png"),
+        )
+        self.assertIn("<FIRST_FRAME> <LAST_FRAME>", p2)
+
+        # 3. Sound cues injection
+        p3 = client.format_omni_prompt(
+            "Sir Longneck chews acacia leaves",
+            sound_cues=["SOUND (O.S.): Soft rain patter", "Thunderclap in distance"],
+        )
+        self.assertIn("Sound design: Soft rain patter, Thunderclap in distance. No dialogue.", p3)
+
+    def test_omni_generate_video_mocked_interactions(self):
+        from pipeline.omni_flash import GeminiOmniFlashClient
+        client = GeminiOmniFlashClient(api_key="mock-key")
+
+        mock_genai_client = MagicMock()
+        mock_file = MagicMock()
+        mock_file.uri = "https://generativelanguage.googleapis.com/files/test123"
+        mock_file.mime_type = "image/png"
+        mock_genai_client.files.upload.return_value = mock_file
+        mock_genai_client.files.download.return_value = b"\x00\x00\x00\x18ftypmp42"
+
+        mock_interaction = MagicMock()
+        mock_interaction.id = "int-12345"
+        mock_interaction.output_video.uri = "https://generativelanguage.googleapis.com/files/out123"
+        mock_genai_client.interactions.create.return_value = mock_interaction
+
+        with tempfile.TemporaryDirectory() as td:
+            out_file = Path(td) / "test_omni.mp4"
+            with patch.object(client, "_get_genai_client", return_value=mock_genai_client):
+                success = client.generate_video(
+                    prompt="Batman leaps between stone gargoyles",
+                    output_file=out_file,
+                    duration=6,
+                    resolution="1080p",
+                )
+                self.assertTrue(success)
+                self.assertTrue(out_file.exists())
+                self.assertGreater(out_file.stat().st_size, 0)
+                mock_genai_client.interactions.create.assert_called_once()
+                call_kwargs = mock_genai_client.interactions.create.call_args.kwargs
+                self.assertEqual(call_kwargs["model"], "gemini-omni-1.1-flash")
+                self.assertEqual(call_kwargs["response_format"]["resolution"], "1080p")
+                self.assertEqual(call_kwargs["response_format"]["duration"], "6s")
+
+    def test_omni_video_generator_engine_dispatch(self):
+        from pipeline.video_gen import VideoGenerationEngine
+        engine = VideoGenerationEngine(provider="omni")
+        self.assertEqual(engine.provider, "omni")
+        self.assertIsNotNone(engine.omni_client)
+
+        # Test dry-run generation
+        scene = Scene(
+            scene_number=1,
+            title="Omni Test Shot",
+            action_description="Batman gazes across flooded Gotham nave",
+            duration_seconds=8.0,
+        )
+        with tempfile.TemporaryDirectory() as td:
+            clip_path = engine.generate_scene_clip(scene, output_dir=Path(td), dry_run=True)
+            self.assertTrue(clip_path.exists())
+            self.assertEqual(scene.status, SceneStatus.COMPLETED)
+
+    def test_server_omni_status_endpoint(self):
+        from fastapi.testclient import TestClient
+        from server import app
+        client = TestClient(app)
+
+        resp = client.get("/api/v1/omni/status")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("status", data)
+        self.assertIn("skill_installed", data)
+        self.assertTrue(data["skill_installed"])
+        self.assertEqual(data["model"], "gemini-omni-1.1-flash")
+        self.assertIn("1080p", data["valid_resolutions"])
+
+        health_resp = client.get("/api/v1/health")
+        self.assertEqual(health_resp.status_code, 200)
+        health_data = health_resp.json()
+        self.assertIn("omni_skill_available", health_data)
+        self.assertTrue(health_data["omni_skill_available"])
+
+    def test_cli_omni_and_resolution_args(self):
+        from main import parse_args
+        import sys
+        old_argv = sys.argv
+        sys.argv = ["main.py", "--provider", "omni", "--resolution", "1080p", "--media"]
+        args = parse_args()
+        self.assertEqual(args.provider, "omni")
+        self.assertEqual(args.resolution, "1080p")
+        self.assertTrue(args.media)
+        sys.argv = old_argv
+
+
 if __name__ == "__main__":
     unittest.main()
 

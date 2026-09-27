@@ -98,17 +98,20 @@ python main.py --generate-mockups --season --episodes 8
 When you are ready to render actual video clips, compose ambient audio scores, and stitch final master MP4s, simply pass the `--media` flag:
 
 ```bash
-# 1. Option 1: Google Flow Ultra via Chrome CDP Automation (flow.google.com/u/5/)
+# 1. Gemini Omni 1.1 Flash via Interactions API (Native 1080p, Seed Chaining & Character DNA):
+python main.py --mode short --duration 24.0 --media --provider omni --resolution 1080p --concept "Batman inspecting aquatic crime scene"
+
+# 2. Option 1: Google Flow Ultra via Chrome CDP Automation (flow.google.com/u/5/)
 python main.py --mode short --duration 24.0 --media --provider chrome --concept "Batman inspecting aquatic crime scene"
 
-# 2. Option 0: 100% Free AI Video Motion Engine (Zero tokens, zero cost!)
+# 3. Option 0: 100% Free AI Video Motion Engine (Zero tokens, zero cost!)
 python main.py --mode shot --media --provider free --concept "Batman on gargoyle in rain"
 
-# 3. Produce Complete 8-Episode Season Master Videos & Supercut:
-python main.py --season --episodes 8 --media --provider chrome
+# 4. Produce Complete 8-Episode Season Master Videos with Gemini Omni Flash:
+python main.py --season --episodes 8 --media --provider omni --resolution 1080p
 
-# 4. Resume an existing project and render media:
-python main.py --job-id <PROJECT_ID> --media --provider chrome
+# 5. Resume an existing project and render media:
+python main.py --job-id <PROJECT_ID> --media --provider omni
 ```
 
 ### C. Reviewing & Editing Storyboards

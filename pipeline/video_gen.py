@@ -19,6 +19,7 @@ from config import settings
 from pipeline.storyboard import Storyboard, Scene, SceneStatus
 from pipeline.chrome_flow import ChromeFlowAutomation
 from pipeline.flow_client import GoogleFlowInternalClient
+from pipeline.omni_flash import GeminiOmniFlashClient
 
 
 class UseApiGoogleFlowClient:
@@ -452,6 +453,7 @@ class VideoGenerationEngine:
         self.useapi_client = UseApiGoogleFlowClient()
         self.chrome_automation = ChromeFlowAutomation()
         self.flow_internal_client = GoogleFlowInternalClient()
+        self.omni_client = GeminiOmniFlashClient(api_key=self.api_key)
         self.genai_client = None
         self._init_genai_client()
 
@@ -516,6 +518,42 @@ class VideoGenerationEngine:
         if self.provider == "free":
             print(f"\n[VideoEngine] 🌟 Dispatching FREE AI Generation for Scene {scene.scene_number:02d} ({scene.duration_seconds}s)...")
             return self._generate_free_motion_clip(scene, clip_path, last_frame_path, aspect_ratio)
+
+        # -------------------------------------------------------------
+        # PROVIDER: Gemini Omni 1.1 Flash (Interactions API / Skill)
+        # -------------------------------------------------------------
+        if self.provider in ["omni", "gemini_omni", "omni_flash"]:
+            print(f"\n[VideoEngine] ⚡ Dispatching Gemini Omni 1.1 Flash for Scene {scene.scene_number:02d} ({scene.duration_seconds}s)...")
+            start_img = Path(scene.reference_image_path) if scene.reference_image_path and Path(scene.reference_image_path).exists() else None
+
+            # Collect character reference images from assets/characters
+            char_refs = []
+            for char_name in getattr(scene, "characters_in_shot", []):
+                slug = char_name.lower().replace(" ", "_").strip()
+                for ext in [".png", ".jpg", ".webp"]:
+                    ref_p = settings.assets_dir / "characters" / f"{slug}{ext}"
+                    if ref_p.exists():
+                        char_refs.append(ref_p)
+                        break
+
+            success = self.omni_client.generate_scene(
+                scene=scene,
+                output_file=clip_path,
+                start_frame=start_img,
+                character_reference_images=char_refs if char_refs else None,
+                aspect_ratio=aspect_ratio,
+                resolution=getattr(settings, "omni_resolution", "720p"),
+            )
+            if success and clip_path.exists() and clip_path.stat().st_size > 0:
+                self.extract_last_frame(clip_path, last_frame_path)
+                scene.output_clip_path = str(clip_path)
+                scene.last_frame_path = str(last_frame_path)
+                scene.status = SceneStatus.COMPLETED
+                print(f"[VideoEngine] Scene {scene.scene_number:02d} generated successfully via Gemini Omni 1.1 Flash!")
+                return clip_path
+            else:
+                print(f"[VideoEngine] Gemini Omni Flash generation failed or unconfigured. Falling back to FREE AI Motion...")
+                return self._generate_free_motion_clip(scene, clip_path, last_frame_path, aspect_ratio)
 
         # -------------------------------------------------------------
         # PROVIDER: Option 1 Chrome Automation (flow.google.com/u/5/)
