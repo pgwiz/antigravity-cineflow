@@ -73,7 +73,7 @@
   - Media generation is strictly gated behind the `--media` flag (`python main.py --media ...` or `python main.py --season --media ...`).
 
 ### 6. Verification & Testing Suite
-- **Pytest Suite (`tests/test_studio.py`)**: 72 comprehensive unit and integration tests passing (100% pass rate) covering data models, cinematography, Omni Flash interactions, useapi client, Chrome automation, Flow error recovery, spatial scene blocking, visual mockup generation, discussion engine, text-first blueprints, flow script generation, FFmpeg stitching, last-frame chaining, FastAPI routes, and Season orchestrator math.
+- **Pytest Suite (`tests/test_studio.py`)**: 73 comprehensive unit and integration tests passing (100% pass rate) covering data models, cinematography, Omni Flash interactions, useapi client, Chrome automation, Flow error recovery, spatial scene blocking, visual mockup generation, discussion engine, text-first blueprints, flow script generation, character generation descriptions, FFmpeg stitching, last-frame chaining, FastAPI routes, and Season orchestrator math.
 - **Dry-run Validations**: Verified `--mode shot` (8s), `--mode short` (32s), `--mode episode` (48s), and `--season --episodes 8` (480s / 8 minutes season).
 - **Probed MP4 Masters**: Inspected via `ffprobe`, confirming valid stream headers, h264 video, AAC audio, and exact timeline duration matching storyboard specifications.
 
@@ -84,9 +84,15 @@
   - Each video prompt is restricted to describing **ONE clear, linear movement** feasible in 10s.
 - **The 3-File Production Pack (`output/`)**:
   - Automatically exported to `output/` and `output/{project_id}/`:
-    1. **`master.txt`**: Complete master production blueprint (Tier 1 Master Reference Sheets: Sheet 1 Cast, Sheet 2 Environment, Sheet 3 Key Props; Character Bible; 3D spatial grid; full Screenplay; 6-beat storyboard sequence; and execution guide).
+    1. **`master.txt`**: Complete master production blueprint (Tier 1 Master Reference Sheets: Sheet 1 Cast, Sheet 2 Environment, Sheet 3 Key Props; Character Bible with Generation Descriptions; 3D spatial grid; full Screenplay; 6-beat storyboard sequence; and execution guide).
     2. **`Scene.md`**: Directorial script detailing scenes, transcripts, camera angles, optics, 180° action axis, Keyframe A/B start/end descriptions, and the **Sequencing & Episode Collection Directive** (compile generated clips into an Episode Collection in sequential order before proceeding to the next episode).
-    3. **`characters.md`**: Upstream manual pre-production character guide with suggested names/aliases, `Character info (optional) Describe how your character acts...`, required angles (Front View, 3/4 View, Side Profile on neutral gray background), and smart consistency fallback logic (checks local reference images and falls back to previous scene keyframes).
+    3. **`characters.md`**: Upstream manual pre-production character guide aligning with Google Flow Character Creator UI fields:
+       - **Suggested Names / Aliases**: Suggested names or aliases for the character.
+       - **Description for Generating the Character (Flow Character Prompt)**: The exact visual prompt used to generate the character reference sheet / 3-angle turnaround on a neutral gray seamless studio background.
+       - **Character Info (Optional - How Character Acts)**: Acting mannerisms, gestures, physical presence, and behavioral reactions.
+       - **Physical Hallmarks & Wardrobe DNA**: Exact costume materials, fabrics, color palette, and physical dimensions.
+       - **AI Visual Prompt Anchor & Angles**: Front View, 3/4 View, Side Profile.
+       - **Smart Consistency Check & Fallback Logic**: Checks verified local asset image; if absent, falls back to inheriting continuity from upstream keyframes.
 - **The Standard 6-Beat Storyboard Sequence**:
   - Beat 1: Establishing the World (Extreme Wide / Wide Shot, slow camera crane/dolly, environment anchor)
   - Beat 2: Character in Environment (Wide / Full Shot, establishes subject location relative to stage)

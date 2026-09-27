@@ -15,6 +15,9 @@ The **Director Agent** acts as an autonomous executive producer, veteran Hollywo
 Every production must establish its character roster before writing:
 - `name`: Character name in uppercase (e.g. `BRUCE WAYNE / BATMAN`)
 - `role`: Dramatic function (`Protagonist`, `Antagonist`, `Foil`, `Mentor`)
+- `suggested_names`: List of suggested names, aliases, or code names
+- `generation_description`: Exact prompt used to generate the character turnaround reference sheet (front, 3/4, and side profile on neutral gray seamless background) in Google Flow Character Creator
+- `character_info`: Optional acting mannerisms, physical presence, gestures, and reactions
 - `appearance`: Height, build, face, eyes, jawline, physical hallmarks
 - `wardrobe_visual_dna`: Exact materials, textures, armor plates, fabrics, cowl specs, utility gear, and color palette
 - `voice_and_cadence`: Vocal pitch, speech rhythm, dialogue style
@@ -201,6 +204,6 @@ The Director Agent includes a dedicated **Flow Script Mode** (`python main.py --
 ### Generated Production Files (`output/`):
 - **`master.txt`**: The overarching master production book with reference sheet specs, character bibles, spatial coordinates, full screenplay transcript, shot-by-shot prompts, and execution instructions.
 - **`Scene.md`**: Directorial blueprint covering scenes, transcripts, camera angles, 10s clip length reminders, and episode collection sequencing directives.
-- **`characters.md`**: Character pre-production guide with suggested names/aliases, character acting details (`Character info: Describe how your character acts...`), required reference angles, and smart consistency checks.
+- **`characters.md`**: Character pre-production guide aligning with Google Flow's Character Creator UI: Suggested names/aliases, **Description for generating the character** (ready-to-paste reference sheet turnaround prompt), **Character info (optional - how character acts)**, required reference angles, and smart consistency checks.
 
 

@@ -103,6 +103,7 @@ class DirectorAgent:
                     "- role: Protagonist, Antagonist, Foil, or Mentor\n"
                     "- suggested_names: list of suggested names/aliases\n"
                     "- character_info: 'Character info (optional): Describe how your character acts, mannerisms, physical presence...'\n"
+                    "- generation_description: 'Description for generating the character: exact prompt for Google Flow / Midjourney / FLUX reference sheet on neutral gray background showing front, 3/4, and side profile'\n"
                     "- appearance: physical traits, build, facial structure, eyes\n"
                     "- wardrobe_visual_dna: exact fabrics, armor texture, color palette, emblems\n"
                     "- voice_and_cadence: vocal pitch, dialogue mannerisms, delivery speed\n"
@@ -532,6 +533,14 @@ class DirectorAgent:
                 "Describe how your character acts: Stoic, deliberate movements, scans room with hyper-alert eyes, "
                 "never fidgets, brooding physical presence, descends with predator-like silence."
             ),
+            generation_description=(
+                "Full body master cast reference sheet of Bruce Wayne as Batman, showing Front View, Three-Quarter View, "
+                "and Side Profile side by side on a clean neutral gray seamless studio background. Imposing 6'2 athletic muscular build, "
+                "chiselled squared jawline with five o'clock shadow, intense brooding eyes. Wearing matte black Kevlar-weave ballistic suit, "
+                "carbon-fiber sculpted chestplate with graphite bat emblem, scalloped leather cape, pointed cowl with sharp 3-inch ears and white slit lenses, "
+                "tactical bronze utility belt. Even, neutral daytime diffuse studio lighting, 35mm lens, sharp focus, 8k resolution, "
+                "Kodak Vision3 500T aesthetic, no dramatic shadows, photorealistic details."
+            ),
             appearance="Imposing 6'2 athletic muscular build, chiselled squared jawline with five o'clock shadow, intense brooding eyes.",
             wardrobe_visual_dna=batman_dna,
             voice_and_cadence="Deep, raspy baritone whisper. Deliberate, terse, authoritative, rarely uses contractions.",
@@ -553,6 +562,13 @@ class DirectorAgent:
                     "Describe how your character acts: Serenely glides in undulating circular patterns inside crystal saline sphere, "
                     "rhythmic gill flutters, curious tilt toward surface light."
                 ),
+                generation_description=(
+                    "Full body master cast reference sheet of Lady Guppy the aquatic bride, showing Front View, Three-Quarter View, "
+                    "and Side Profile side by side on a clean neutral gray seamless studio background. 14-inch Japanese Kohaku koi fish "
+                    "with vibrant fiery scarlet-orange and pearl-white scales, swimming serenely inside a spherical crystalline water orb "
+                    "with brass rivets and soft cyan bioluminescent water glow. Even, neutral daytime diffuse studio lighting, 35mm lens, "
+                    "sharp focus, 8k resolution, Kodak Vision3 500T aesthetic, no dramatic shadows, photorealistic details."
+                ),
                 appearance="14-inch Japanese Kohaku koi fish, vibrant fiery scarlet-orange and pearl-white scales, crystalline water sphere with brass rivets.",
                 wardrobe_visual_dna="Spherical crystalline water orb, brass rivets, soft cyan bioluminescent water glow.",
                 voice_and_cadence="Silent rhythmic bubble bursts, gentle water caresses against glass.",
@@ -570,6 +586,13 @@ class DirectorAgent:
                 character_info=(
                     "Describe how your character acts: Regal posture, towers 16 feet in air, slow dignified ear twitches, "
                     "calmly ruminates acacia leaves amidst urban chaos, never panics."
+                ),
+                generation_description=(
+                    "Full body master cast reference sheet of Sir Longneck the giraffe groom, showing Front View, Three-Quarter View, "
+                    "and Side Profile side by side on a clean neutral gray seamless studio background. 16-foot African savanna giraffe, "
+                    "geometric chestnut patches, custom-tailored midnight-black velvet tailcoat with silk bowtie and white satin collar. "
+                    "Even, neutral daytime diffuse studio lighting, 35mm lens, sharp focus, 8k resolution, Kodak Vision3 500T aesthetic, "
+                    "no dramatic shadows, photorealistic details."
                 ),
                 appearance="16-foot African savanna giraffe, geometric chestnut patches, custom-tailored midnight-black velvet tailcoat with silk bowtie.",
                 wardrobe_visual_dna="Midnight-black tailored velvet tailcoat, white silk bowtie, chestnut hide patterns.",
@@ -589,6 +612,13 @@ class DirectorAgent:
                     "Describe how your character acts: Sinuous, calculated feline agility, silent paw steps, "
                     "winks with piercing golden eyes, adjusts miniature fedora, clutches brass key in jaws."
                 ),
+                generation_description=(
+                    "Full body master cast reference sheet of The Mystery Cat, showing Front View, Three-Quarter View, "
+                    "and Side Profile side by side on a clean neutral gray seamless studio background. Sleek black-and-white tuxedo cat, "
+                    "piercing golden-amber eyes, wearing miniature tilted charcoal fedora and tiny waterproof trenchcoat, clutching antique brass key in jaws. "
+                    "Even, neutral daytime diffuse studio lighting, 35mm lens, sharp focus, 8k resolution, Kodak Vision3 500T aesthetic, "
+                    "no dramatic shadows, photorealistic details."
+                ),
                 appearance="Sleek black-and-white tuxedo cat, piercing golden-amber eyes, miniature tilted charcoal fedora, waterproof trenchcoat.",
                 wardrobe_visual_dna="Sleek obsidian and ivory fur, miniature charcoal fedora, tiny waterproof trenchcoat, antique brass key.",
                 voice_and_cadence="Low mocking purr, rhythmic tail flick, vanishing without audible trace.",
@@ -607,6 +637,13 @@ class DirectorAgent:
             character_info=(
                 "Describe how your character acts: Sinuous, calculated gestures, tilts head unnervingly when speaking, "
                 "glides without making footstep sounds, taps ceramic mask rhythmically."
+            ),
+            generation_description=(
+                "Full body master cast reference sheet of The Whisper, showing Front View, Three-Quarter View, "
+                "and Side Profile side by side on a clean neutral gray seamless studio background. Tall, wiry silhouette, "
+                "weathered charcoal wool trenchcoat, weathered black leather gloves, cracked white ceramic half-mask with red cipher markings. "
+                "Even, neutral daytime diffuse studio lighting, 35mm lens, sharp focus, 8k resolution, Kodak Vision3 500T aesthetic, "
+                "no dramatic shadows, photorealistic details."
             ),
             appearance="Tall, wiry silhouette, concealed face under a high-collared trenchcoat and cracked porcelain mask.",
             wardrobe_visual_dna="Charcoal wool trenchcoat, weathered black leather gloves, cracked white ceramic half-mask with red cipher markings.",

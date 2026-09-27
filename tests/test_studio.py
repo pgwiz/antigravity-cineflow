@@ -1390,6 +1390,7 @@ class TestFlowScriptGeneration(unittest.TestCase):
             chars_text = files["characters_md"].read_text(encoding="utf-8")
             self.assertIn("Tier 1 — Sheet 1: Master Cast Reference Sheet Requirements", chars_text)
             self.assertIn("Suggested Names / Aliases", chars_text)
+            self.assertIn("Description for Generating the Character (Flow Character Prompt)", chars_text)
             self.assertIn("Character Info (Optional - How Character Acts)", chars_text)
             self.assertIn("Smart Consistency Check & Fallback", chars_text)
 
@@ -1420,6 +1421,44 @@ class TestFlowScriptGeneration(unittest.TestCase):
         finally:
             if Path(prev_path).exists():
                 Path(prev_path).unlink()
+
+    def test_character_generation_description(self):
+        # 1. Custom generation description
+        custom_char = CharacterProfile(
+            character_id="hero",
+            name="THE CYBER KNIGHT",
+            role="Protagonist",
+            generation_description="Full body master cast reference sheet of Cyber Knight on neutral gray seamless background.",
+            appearance="Cybernetic armor, glowing visor",
+            wardrobe_visual_dna="Titanium plating with blue LEDs",
+            voice_and_cadence="Synthesized baritone",
+            backstory="Former enforcer turned protector",
+            internal_conflict="Duty vs humanity",
+            prompt_anchor="Cyber Knight in titanium armor",
+        )
+        self.assertEqual(
+            custom_char.get_generation_description(),
+            "Full body master cast reference sheet of Cyber Knight on neutral gray seamless background.",
+        )
+
+        # 2. Dynamic generation description when not explicitly provided
+        dyn_char = CharacterProfile(
+            character_id="scout",
+            name="AERIAL SCOUT",
+            role="Foil",
+            appearance="Slender 5'7 runner with copper goggles",
+            wardrobe_visual_dna="Flight leather jacket and canvas trousers",
+            voice_and_cadence="Fast-talking energetic tenor",
+            backstory="Orphan mechanic from the sky docks",
+            internal_conflict="Wants adventure, needs stability",
+            prompt_anchor="Aerial scout with copper goggles",
+        )
+        dyn_desc = dyn_char.get_generation_description()
+        self.assertIn("Full body master cast reference sheet of AERIAL SCOUT", dyn_desc)
+        self.assertIn("neutral gray seamless studio background", dyn_desc)
+        self.assertIn("Slender 5'7 runner with copper goggles", dyn_desc)
+        self.assertIn("Flight leather jacket and canvas trousers", dyn_desc)
+        self.assertIn("Kodak Vision3 500T", dyn_desc)
 
     def test_cli_flow_argument_parsing(self):
         from main import parse_args

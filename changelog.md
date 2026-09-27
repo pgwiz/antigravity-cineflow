@@ -30,8 +30,15 @@ All notable changes to the Video Workflow Studio are documented in this file.
 - **FastAPI Flow Endpoint (`server.py`)**:
   - Added `POST /api/v1/flow/script` (and alias `/api/v1/flow`) accepting `FlowScriptRequest` and returning the generated production files and full textual content.
 - **Automated Flow Test Suite (`tests/test_studio.py`)**:
-  - Added `TestFlowScriptGeneration` (5 new tests covering timing law enforcement, 3-file pack export, character fallback consistency, CLI `--flow` parsing, and FastAPI endpoint).
-  - Total test suite expanded to **72 / 72 passing (100%)**.
+  - Added `TestFlowScriptGeneration` (6 tests covering timing law enforcement, 3-file pack export, character fallback consistency, character generation descriptions, CLI `--flow` parsing, and FastAPI endpoint).
+  - Total test suite expanded to **73 / 73 passing (100%)**.
+- **Explicit Character Generation Description (`pipeline/storyboard.py`, `pipeline/director.py`, `pipeline/season.py`)**:
+  - Added `generation_description` field to `CharacterProfile` matching Google Flow's Character Creator UI input (*"Description for generating the character"*).
+  - Implemented `CharacterProfile.get_generation_description()` which returns the explicit prompt or dynamically synthesizes an optimal master reference sheet prompt (Front View, 3/4 View, Side Profile on neutral gray background with 35mm lens, 8k resolution, Kodak Vision3 500T aesthetic, no dramatic shadows).
+  - Updated `generate_characters_markdown()` to render a dedicated, copy-paste ready fenced text block for `- **Description for Generating the Character (Flow Character Prompt):**`.
+  - Updated `generate_master_text()` to output `Generation Desc:` for every character in `master.txt`.
+  - Added comprehensive reference sheet generation descriptions for all characters across `director.py` and `season.py` (Batman, Lady Guppy, Sir Longneck, The Mystery Cat, The Whisper, and Alfred Pennyworth).
+  - Added unit test `test_character_generation_description` asserting both custom prompts and dynamic algorithmic fallback synthesis.
 
 ## [1.7.0] - 2026-09-27
 

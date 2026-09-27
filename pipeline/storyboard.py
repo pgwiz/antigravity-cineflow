@@ -39,6 +39,10 @@ class CharacterProfile(BaseModel):
         default=None,
         description="Character info (optional): Describe how your character acts, mannerisms, physical gestures, reactions...",
     )
+    generation_description: Optional[str] = Field(
+        default=None,
+        description="Description for generating the character: exact prompt for Google Flow / Midjourney / FLUX reference sheet on neutral gray background",
+    )
     appearance: str = Field(..., description="Physical build, height, facial features, jawline, hair, eye color")
     wardrobe_visual_dna: str = Field(..., description="Exact costume materials, armor textures, fabrics, color palette, emblems")
     voice_and_cadence: str = Field(..., description="Vocal pitch, accent, speech cadence, dialogue mannerisms")
@@ -50,6 +54,17 @@ class CharacterProfile(BaseModel):
         default_factory=lambda: ["Front View (neutral daytime lighting)", "3/4 View", "Side Profile"],
         description="Required angles on neutral gray background for manual generation",
     )
+
+    def get_generation_description(self) -> str:
+        """Returns the prompt to generate the character reference sheet (Google Flow Character Creator)."""
+        if self.generation_description and self.generation_description.strip():
+            return self.generation_description.strip()
+        return (
+            f"Full body master cast reference sheet of {self.name}, showing Front View, Three-Quarter View, and Side Profile "
+            f"side by side on a clean neutral gray seamless studio background. {self.appearance}. "
+            f"Wearing {self.wardrobe_visual_dna}. Even, neutral daytime diffuse studio lighting, 35mm lens, sharp focus, "
+            f"8k resolution, Kodak Vision3 500T aesthetic, no dramatic shadows, photorealistic details."
+        )
 
     def resolve_consistency_status(self, fallback_image_path: Optional[str] = None) -> Tuple[Optional[str], str]:
         """Smart consistency check: checks if character reference image exists;
@@ -105,6 +120,11 @@ class Screenplay(BaseModel):
         ]
         for c in self.characters:
             lines.append(f"## {c.name} ({c.role})")
+            if c.suggested_names:
+                lines.append(f"- **Suggested Names / Aliases:** {', '.join(c.suggested_names)}")
+            lines.append(f"- **Description for Generating the Character:** {c.get_generation_description()}")
+            if c.character_info:
+                lines.append(f"- **Character Info (Acting Style):** {c.character_info}")
             lines.append(f"- **Physical Appearance:** {c.appearance}")
             lines.append(f"- **Wardrobe & Visual DNA:** {c.wardrobe_visual_dna}")
             lines.append(f"- **Voice & Speech Cadence:** {c.voice_and_cadence}")
@@ -386,10 +406,12 @@ class Storyboard(BaseModel):
             for idx, c in enumerate(self.screenplay.characters, start=1):
                 sugg = ", ".join(c.suggested_names) if c.suggested_names else c.name
                 info = c.character_info or "Standard stoic cinematic presence; deliberate physical gestures."
+                gen_desc = c.get_generation_description()
                 img_path, status = c.resolve_consistency_status()
                 lines.extend([
                     f"\nCHARACTER #{idx:02d}: {c.name} ({c.role.upper()})",
                     f"  * Suggested Names:      {sugg}",
+                    f"  * Generation Desc:      {gen_desc}",
                     f"  * Character Info (Act): {info}",
                     f"  * Physical Hallmarks:   {c.appearance}",
                     f"  * Wardrobe / Visual DNA:{c.wardrobe_visual_dna}",
@@ -610,10 +632,13 @@ class Storyboard(BaseModel):
             for idx, c in enumerate(self.screenplay.characters, start=1):
                 sugg = ", ".join(c.suggested_names) if c.suggested_names else c.name
                 info = c.character_info or "Describe how your character acts: Stoic, deliberate movements, scans room with hyper-alert eyes, never fidgets, brooding physical presence."
+                gen_desc = c.get_generation_description()
                 img_path, status = c.resolve_consistency_status()
                 lines.extend([
                     f"### Character #{idx:02d}: {c.name} [{c.role.upper()}]",
                     f"- **Suggested Names / Aliases:** `{sugg}`",
+                    f"- **Description for Generating the Character (Flow Character Prompt):**",
+                    f"  ```text\n  {gen_desc}\n  ```",
                     f"- **Character Info (Optional - How Character Acts):**",
                     f"  > *\"{info}\"*",
                     f"- **Physical Appearance & Build:** {c.appearance}",
